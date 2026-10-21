@@ -9,12 +9,21 @@ export function TopBar({
   modelLabel,
   demo,
   theme,
+  draftCount = 0,
+  saveState = 'idle',
   onToggleTheme,
+  onOpenDrafts,
   onOpenSkill,
   onOpenPrompt,
 }) {
   const viewLabel = view === 'intro' ? '开始' : view === 'gallery' ? '方案对比' : '画布编辑'
   const isLight = theme === 'light'
+  const draftTitle =
+    saveState === 'saving'
+      ? '正在保存草稿…'
+      : saveState === 'error'
+        ? '草稿保存失败'
+        : '本地草稿（自动保存）'
 
   return html`
     <header class="app-header">
@@ -32,6 +41,19 @@ export function TopBar({
         <span class=${`status-dot ${keyReady ? 'ok' : demo ? 'demo' : ''}`}></span>
         ${keyReady ? modelLabel || '模型已连接' : demo ? '示例模式 · 未连接模型' : '未连接模型'}
       </span>
+      <button
+        class=${`header-btn draft-btn ${saveState}`}
+        onClick=${onOpenDrafts}
+        type="button"
+        title=${draftTitle}
+        aria-label="本地草稿"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z" />
+        </svg>
+        <span class="draft-label">草稿</span>
+        <span class="draft-count">${draftCount}</span>
+      </button>
       <button
         class="header-btn theme-btn"
         onClick=${onToggleTheme}

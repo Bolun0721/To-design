@@ -18,7 +18,8 @@
 5. 经典大报的报纸版支持「主图 + 次图」双图位：右侧「图片槽位」上传第二张，或保留占位块；
 6. 右侧「对话微调」用一句话改这一版（标题放大、换配色、正文两栏、标题下移），模型返回最小 JSON patch，可撤销；
 7. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
-8. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
+8. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
+9. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -196,19 +197,33 @@ Base URL：https://api.deepseek.com/v1
 - 没有 Key 时对话输入禁用；对话失败会以红色气泡显示原因，不影响画布；
 - 提示词独立在 `src/agent/chat.js`，与生成提示词分开，便于单独调。
 
-> 当前对话是「无状态最小 patch」：每次只带当前方案和最近几句，不做长期记忆；要整版重构，回左侧重新生成更稳。
+> 对话记录会随草稿保存，打开草稿后 ChatPanel 会恢复消息；但发给模型的上下文仍然只带最近 4 句（不做长期记忆）。要整版重构，回左侧重新生成更稳。
+
+## 本地草稿 / 对话历史
+
+- **自动保存**：800ms 防抖，把 `schemes / photo / photo2 / chats / view / active / format / meta` 写入 IndexedDB；
+- **刷新恢复**：`localStorage` 只存当前草稿 id，启动时读取草稿并恢复到画廊 / 画布；
+- **草稿列表**：顶栏「草稿 N」→ 打开 / 删除 / 新建；当前草稿有「当前」标记；
+- 照片以 data URL 存 IndexedDB；**API Key 不写入草稿**，仍在 `sessionStorage`；
+- 对话历史随草稿保存，恢复后能看到之前的指令与回复；
+- 浏览器禁用 IndexedDB 或配额不足时会提示保存失败，但不影响当前编辑。
+
+![草稿列表](docs/09-drafts.png)
+
+![刷新恢复](docs/10-drafts-restored.png)
 
 ## 架构
 
 ```
 index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
-  └─ src/App.js                 状态机：intro → gallery → editor；主题 / 对话状态
+  └─ src/App.js                 状态机：intro → gallery → editor；主题 / 对话 / 草稿 / 自动保存
        ├─ components/InputRail  素材 / 格式 / BYOK / 生成
        ├─ components/Gallery    三套方案并排
        ├─ components/Editor     画布 + 缩放 + 方案 tab
        ├─ components/Paper      模板引擎：blocks → 报纸/海报 DOM
-       ├─ components/Inspector  设计 tab / 对话 tab + 导出 + JSON
+       ├─ components/Inspector  设计 tab / 对话 tab + 图片槽位 + 导出 + JSON
        ├─ components/ChatPanel  对话消息 / 快捷指令 / 撤销
+       ├─ components/DraftsModal 草稿列表 / 打开 / 删除 / 新建
        └─ components/Modals     Skill / Prompt / JSON 查看
   └─ agent/
        ├─ systemPrompt.js       生成提示词 + Schema + 白名单
@@ -218,7 +233,8 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        ├─ validate.js           硬校验 / 修复 / 布局注入
        └─ demoData.js           离线示例稿件
   └─ config/presets.js          5 组配色、3 组字体、3 套版式 × 2 格式
-  └─ styles.css / theme-chat.css 工作室外壳 / 明暗主题 + 对话面板
+  └─ lib/                       image / exportPaper / drafts（IndexedDB 草稿）
+  └─ styles.css / theme-chat.css 工作室外壳 / 明暗主题 + 对话面板 + 草稿
 server.mjs                      静态服务 + /api/llm 极薄中继（零依赖）
 ```
 
@@ -249,10 +265,10 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── main.js
 │   ├── styles.css             # 工作室外壳 + 报纸模板样式
 │   ├── theme-chat.css         # 明暗主题 + 对话面板
-│   ├── agent/
-│   ├── components/
+│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch
+│   ├── components/            # Paper / Inspector / ChatPanel / DraftsModal …
 │   ├── config/presets.js
-│   └── lib/
+│   └── lib/                   # image / exportPaper / drafts（IndexedDB 草稿）
 ├── public/
 │   ├── demo/coffee.jpg        # 程序化生成的示例照片（主图）
 │   ├── demo/coffee-2.jpg      # 程序化生成的示例照片（次图）
@@ -271,6 +287,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
 │   ├── cdp-multi.mjs          # 双图 → 占位 → 重新上传 自检
+│   ├── cdp-drafts.mjs         # 自动保存 / 刷新恢复 / 对话历史 / 删除 自检
 │   └── cdp-modals.mjs         # 弹窗自检
 └── docs/                      # README 截图
 ```
@@ -297,6 +314,7 @@ node scripts/cdp-generate.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
 node scripts/cdp-multi.mjs
+node scripts/cdp-drafts.mjs
 node scripts/cdp-modals.mjs
 
 # 5. 导出矩阵：3 方案 × 2 格式 × 2 主题 = 12 例
@@ -307,6 +325,7 @@ node scripts/export-matrix.mjs
 
 - `npm test` 通过（校验 / 对话 patch / CSS 颜色护栏）；
 - 多图自检：示例 2 图 → 移除次图变占位（仍可导出）→ 重新上传恢复 2 图，0 异常；
+- 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.6s，**0 未捕获异常**；经典大报的 2 张图也进入导出；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
@@ -329,9 +348,10 @@ node scripts/export-matrix.mjs
 - **字体依赖本机**：中文用宋体 / 苹方 / 思源回退，英文用 Playfair / Georgia；Google Fonts 为可选增强（非阻塞加载），离线时会回退；
 - **多图范围**：v1 只有经典大报的**报纸版**使用双图位；海报与 B / C 版式故意保持单图，避免视觉焦点分裂；
 - **iframe 沙箱**：v1 用命名空间隔离换取拖动稳定性；若要做嵌入式 / 多实例预览，下一步把 Paper 放进 srcdoc iframe，并用 postMessage 桥接拖动；
+- **草稿只在本机**：IndexedDB 按浏览器 / 设备隔离，没有账号同步；清理浏览器数据会删除草稿；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：本地草稿 / 对话历史 → iframe 沙箱 → 移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）与 P1（经典大报双图位）已完成，见 `scripts/export-matrix.mjs`、`scripts/check-css.mjs`、`scripts/cdp-multi.mjs`。
+下一步优先级：iframe 沙箱 → 移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）已完成，见 `scripts/export-matrix.mjs`、`scripts/check-css.mjs`、`scripts/cdp-multi.mjs`、`scripts/cdp-drafts.mjs`。
 
 ---
 

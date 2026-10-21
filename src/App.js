@@ -8,6 +8,7 @@ import { Gallery } from './components/Gallery.js'
 import { Editor } from './components/Editor.js'
 import { Inspector } from './components/Inspector.js'
 import { JsonModal, PromptModal, SkillModal } from './components/Modals.js'
+import { DraftsModal } from './components/DraftsModal.js'
 import { buildDemoPayload } from './agent/demoData.js'
 import { buildSystemPrompt, buildUserPrompt } from './agent/systemPrompt.js'
 import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './agent/chat.js'
@@ -17,6 +18,16 @@ import { chineseDate, clampText, shortDate } from './lib/format.js'
 import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto, renderTreatedPhoto } from './lib/image.js'
 import { downloadCanvas, printCanvas, renderPaperPng } from './lib/exportPaper.js'
 import { FORMATS, resolveStyle } from './config/presets.js'
+import {
+  clearCurrentDraftId,
+  deleteDraftRecord,
+  getCurrentDraftId,
+  getDraftRecord,
+  listDraftRecords,
+  newDraftId,
+  saveDraftRecord,
+  setCurrentDraftId,
+} from './lib/drafts.js'
 
 const html = htm.bind(h)
 
@@ -75,6 +86,11 @@ export function App() {
   const [chats, setChats] = useState({})
   const [chatBusy, setChatBusy] = useState(false)
   const [chatUndo, setChatUndo] = useState({})
+  const [draftId, setDraftId] = useState(() => newDraftId())
+  const [draftList, setDraftList] = useState([])
+  const [draftCount, setDraftCount] = useState(0)
+  const [saveState, setSaveState] = useState('idle')
+  const [restoringDraft, setRestoringDraft] = useState(true)
 
   const paperRef = useRef(null)
   const abortRef = useRef(null)
@@ -82,6 +98,10 @@ export function App() {
   const toastTimer = useRef(null)
   const schemesRef = useRef(schemes)
   schemesRef.current = schemes
+  const draftIdRef = useRef(draftId)
+  draftIdRef.current = draftId
+  const saveTimerRef = useRef(null)
+  const saveErrorRef = useRef(false)
 
   const demo = useMemo(() => {
     try {
@@ -193,6 +213,252 @@ export function App() {
       }
     },
     [applyResult, format, photo],
+  )
+
+  const applyDraft = useCallback((draft) => {
+    if (!draft || draft.version !== 1) return false
+    const nextSchemes = Array.isArray(draft.schemes) ? draft.schemes : []
+    const nextActive = Math.min(
+      Math.max(Number(draft.active) || 0, 0),
+      Math.max(nextSchemes.length - 1, 0),
+    )
+    setDraftId(draft.id)
+    setSchemes(nextSchemes)
+    setActive(nextActive)
+    setFormat(draft.format === 'poster' ? 'poster' : 'newspaper')
+    setDescription(typeof draft.description === 'string' ? draft.description : '')
+    setPhoto(draft.photo || null)
+    setPhoto2(draft.photo2 || null)
+    setSummary(draft.summary || '')
+    setMeta(
+      draft.meta && typeof draft.meta === 'object'
+        ? draft.meta
+        : { date: chineseDate(), disclaimer: '创意报纸版式，非真实新闻' },
+    )
+    setWarnings(Array.isArray(draft.warnings) ? draft.warnings : [])
+    setRecommended(draft.recommended || 'B')
+    setDemoMode(Boolean(draft.demoMode))
+    setChats(draft.chats && typeof draft.chats === 'object' ? draft.chats : {})
+    setChatUndo({})
+    setChatBusy(false)
+    setView(nextSchemes.length ? (draft.view === 'editor' ? 'editor' : 'gallery') : 'intro')
+    setError('')
+    return true
+  }, [])
+
+  const refreshDrafts = useCallback(async () => {
+    try {
+      const list = await listDraftRecords()
+      setDraftList(list)
+      setDraftCount(list.length)
+      return list
+    } catch {
+      return []
+    }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    const isDemo = new URLSearchParams(window.location.search).get('demo') === '1'
+    ;(async () => {
+      try {
+        if (!isDemo) {
+          const id = getCurrentDraftId()
+          if (id) {
+            const draft = await getDraftRecord(id)
+            if (draft && draft.version === 1) {
+              if (alive) applyDraft(draft)
+            } else if (alive) {
+              clearCurrentDraftId()
+            }
+          }
+        }
+      } catch {
+        /* 浏览器禁用存储时静默降级为无草稿 */
+      }
+      try {
+        const list = await listDraftRecords()
+        if (alive) {
+          setDraftList(list)
+          setDraftCount(list.length)
+        }
+      } catch {
+        /* ignore */
+      }
+      if (alive) setRestoringDraft(false)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [applyDraft])
+
+  const hasDraftContent = Boolean(
+    schemes.length || photo || photo2 || description.trim() || Object.keys(chats).length,
+  )
+
+  useEffect(() => {
+    if (restoringDraft) return
+    if (!hasDraftContent) {
+      setSaveState('idle')
+      return
+    }
+
+    setSaveState('saving')
+    const id = draftIdRef.current
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+
+    saveTimerRef.current = setTimeout(async () => {
+      const schemeForMeta = schemes[active] || schemes[0] || null
+      const styleForMeta = schemeForMeta ? resolveStyle(schemeForMeta) : null
+      const titleSource =
+        schemeForMeta?.content?.headline || description.trim() || '未命名草稿'
+      const metaInfo = {
+        id,
+        title: clampText(titleSource, 24),
+        subtitle: clampText(schemes.map((scheme) => scheme.name).join(' · '), 60),
+        description: clampText(description.trim(), 80),
+        updatedAt: Date.now(),
+        format,
+        schemeCount: schemes.length,
+        accent: styleForMeta?.palette.accent || '#C8102E',
+        background: styleForMeta?.palette.background || '#FFFFFF',
+        ink: styleForMeta?.palette.text || '#1A1A1A',
+        letter: schemeForMeta?.id || '·',
+        demo: demoMode,
+      }
+
+      try {
+        await saveDraftRecord({
+          version: 1,
+          id,
+          savedAt: Date.now(),
+          view,
+          active,
+          format,
+          description,
+          photo,
+          photo2,
+          schemes,
+          summary,
+          meta,
+          warnings,
+          recommended,
+          demoMode,
+          chats,
+          metaInfo,
+        })
+        setCurrentDraftId(id)
+        setSaveState('saved')
+        saveErrorRef.current = false
+        await refreshDrafts()
+      } catch (err) {
+        setSaveState('error')
+        if (!saveErrorRef.current) {
+          saveErrorRef.current = true
+          showToast(
+            `本地草稿保存失败：${err.message || '浏览器存储不可用'}`,
+            'error',
+          )
+        }
+      }
+    }, 800)
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [
+    restoringDraft,
+    hasDraftContent,
+    draftId,
+    schemes,
+    active,
+    format,
+    description,
+    photo,
+    photo2,
+    summary,
+    meta,
+    warnings,
+    recommended,
+    chats,
+    demoMode,
+    view,
+    refreshDrafts,
+    showToast,
+  ])
+
+  const startNewDraft = useCallback(() => {
+    if (busy) {
+      showToast('正在生成方案，完成后再新建草稿', 'error')
+      return
+    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    clearCurrentDraftId()
+    setDraftId(newDraftId())
+    setSchemes([])
+    setActive(0)
+    setFormat('newspaper')
+    setDescription('')
+    setPhoto(null)
+    setPhoto2(null)
+    setSummary('')
+    setWarnings([])
+    setRecommended('B')
+    setMeta({ date: chineseDate(), disclaimer: '创意报纸版式，非真实新闻' })
+    setChats({})
+    setChatUndo({})
+    setChatBusy(false)
+    setDemoMode(false)
+    setView('intro')
+    setModal(null)
+    setError('')
+    setSaveState('idle')
+  }, [busy, showToast])
+
+  const openDrafts = useCallback(async () => {
+    setModal('drafts')
+    await refreshDrafts()
+  }, [refreshDrafts])
+
+  const openDraft = useCallback(
+    async (id) => {
+      if (busy) {
+        showToast('正在生成方案，完成后再打开草稿', 'error')
+        return
+      }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      try {
+        const draft = await getDraftRecord(id)
+        if (!draft) throw new Error('草稿不存在或已被删除')
+        applyDraft(draft)
+        setCurrentDraftId(id)
+        setModal(null)
+        showToast('草稿已打开')
+      } catch (err) {
+        showToast(err.message || '打开草稿失败', 'error')
+      }
+    },
+    [applyDraft, busy, showToast],
+  )
+
+  const discardDraft = useCallback(
+    async (id) => {
+      if (busy) {
+        showToast('正在生成方案，完成后再删除草稿', 'error')
+        return
+      }
+      if (!window.confirm('删除这份草稿？此操作不可撤销。')) return
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      try {
+        await deleteDraftRecord(id)
+        if (id === draftIdRef.current) startNewDraft()
+        await refreshDrafts()
+        showToast('草稿已删除')
+      } catch (err) {
+        showToast(`删除草稿失败：${err.message}`, 'error')
+      }
+    },
+    [busy, refreshDrafts, showToast, startNewDraft],
   )
 
   useEffect(() => {
@@ -560,7 +826,10 @@ export function App() {
         modelLabel=${modelLabel}
         demo=${demoMode}
         theme=${theme}
+        draftCount=${draftCount}
+        saveState=${saveState}
         onToggleTheme=${toggleTheme}
+        onOpenDrafts=${openDrafts}
         onOpenSkill=${() => setModal('skill')}
         onOpenPrompt=${() => setModal('prompt')}
       />
@@ -668,6 +937,17 @@ export function App() {
       ${modal === 'json' &&
       activeScheme &&
       html`<${JsonModal} scheme=${activeScheme} onClose=${() => setModal(null)} />`}
+      ${modal === 'drafts' &&
+      html`
+        <${DraftsModal}
+          drafts=${draftList}
+          currentId=${draftId}
+          onOpen=${openDraft}
+          onDelete=${discardDraft}
+          onNew=${() => startNewDraft()}
+          onClose=${() => setModal(null)}
+        />
+      `}
 
       ${toast && html`<div class=${`toast ${toast.kind === 'error' ? 'error' : ''}`}>${toast.msg}</div>`}
     </div>
