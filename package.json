@@ -1,0 +1,16 @@
+{
+  "name": "front-page-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "头版智造局 — BYOK 智能报纸/海报生成器 demo（零构建）",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "htm": "^3.1.1",
+    "preact": "10.26.4"
+  }
+}

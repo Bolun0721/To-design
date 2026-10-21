@@ -1,0 +1,8 @@
+node_modules/
+.npm-cache/
+.edge-profile/
+.shots/
+.demo.pid
+*.log
+Thumbs.db
+.DS_Store
