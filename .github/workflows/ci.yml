@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests + CSS guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax check
+        run: |
+          node --check server.mjs
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Validate + chat patch + CSS color guard
+        run: npm test
+
+      # 导出矩阵需要无头浏览器和本地服务，默认不在 GitHub Actions 里跑：
+      #   node server.mjs
+      #   msedge --headless=new --remote-debugging-port=9222 ...
+      #   node scripts/export-matrix.mjs

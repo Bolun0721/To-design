@@ -226,6 +226,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 
 ```
 .
+├── .github/workflows/ci.yml   # CI：语法检查 + npm test（导出矩阵需本地浏览器）
 ├── index.html                 # 入口（import map + 字体 + html2canvas）
 ├── server.mjs                 # 零依赖静态服务 + LLM 中继
 ├── src/
@@ -245,6 +246,8 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── make_demo_photo.py     # 生成示例照片（Pillow）
 │   ├── test-validate.mjs      # 校验层单测
 │   ├── test-chat.mjs          # 对话 patch 单测
+│   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
+│   ├── export-matrix.mjs      # 3 方案 × 2 格式 × 2 主题 导出矩阵
 │   ├── mock-llm.mjs           # 本地 mock 模型（生成 + 对话 patch）
 │   ├── cdp-check.mjs          # 拖动 / 改字 / 换色 / 导出 自检
 │   ├── cdp-generate.mjs       # 真实点击生成的端到端测试
@@ -257,9 +260,9 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 ## 自检脚本
 
 ```bash
-# 1. 校验层 + 对话 patch 单测（无需浏览器）
-node scripts/test-validate.mjs
-node scripts/test-chat.mjs
+# 1. 单测 + CSS 颜色护栏（无需浏览器）
+npm test
+# PowerShell 执行策略禁止 npm.ps1 时用：npm.cmd test
 
 # 2. 本地 mock 模型（另开终端）
 node scripts/mock-llm.mjs
@@ -276,9 +279,19 @@ node scripts/cdp-generate.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
 node scripts/cdp-modals.mjs
+
+# 5. 导出矩阵：3 方案 × 2 格式 × 2 主题 = 12 例
+node scripts/export-matrix.mjs
 ```
 
-当前自检结果：拖动 / 双击改字 / 换主色 / 1588×2246 PNG 导出全部通过；亮色主题下点击「导出 PNG」可生成报纸 1588×2246 与海报 1600×2000 两个文件；mock 模型端到端生成 3 套方案；对话 patch（换配色 + 放大标题）应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染无异常。
+当前自检结果：
+
+- `npm test` 通过（校验 / 对话 patch / CSS 颜色护栏）；
+- 导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.6s，**0 未捕获异常**；
+- mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
+
+> CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
+> `check-css.mjs` 会拦住 `color-mix()` / `color()` / `oklch()` 等 html2canvas 无法解析的写法——这正是上次导出失败的根因。
 
 ## 第三方与许可
 
