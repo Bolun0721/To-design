@@ -311,7 +311,7 @@ node scripts/export-matrix.mjs
 - **iframe 沙箱**：v1 用命名空间隔离换取拖动稳定性；若要做嵌入式 / 多实例预览，下一步把 Paper 放进 srcdoc iframe，并用 postMessage 桥接拖动；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：iframe 沙箱 → 多图 block → 本地草稿 / 对话历史持久化 → 移动端。
+下一步优先级：多图 block → 本地草稿 / 对话历史 → iframe 沙箱 → 移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）已完成，见 `scripts/export-matrix.mjs` 与 `scripts/check-css.mjs`。
 
 ---
 
