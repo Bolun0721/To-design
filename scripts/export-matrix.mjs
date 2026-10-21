@@ -181,6 +181,11 @@ for (const item of CASES) {
     if (actual.scheme !== item.scheme) record.reasons.push(`方案=${actual.scheme}`)
     if (actual.format !== true) record.reasons.push('格式 class 不匹配')
 
+    if (item.scheme === 'A' && item.format === 'newspaper') {
+      const imageCount = await evaluate(`document.querySelectorAll('.paper .hero img').length`)
+      if (imageCount !== 2) record.reasons.push(`经典大报图片数=${imageCount}，期望 2`)
+    }
+
     await evaluate(`document.querySelector('.action-btn.primary').click(); true;`)
     const file = await waitForPng()
     const toast = await evaluate(`document.querySelector('.toast')?.innerText || ''`)

@@ -47,6 +47,7 @@ export function buildDemoPayload({ date = chineseDate(), format = 'newspaper' } 
           subhead: '一个普通的周日下午，被十分钟的等待重新计时',
           body_blocks: A_BODY.map((text) => ({ type: 'paragraph', text })),
           caption: '靠窗的座位上，一杯手冲与一本翻旧的书',
+          caption_secondary: '午后的光停在桌沿，像一张没洗出来的旧照片',
           pullquote: '有些下午，不需要被安排。',
           date,
           image_placeholders: [],

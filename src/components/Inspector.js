@@ -1,5 +1,5 @@
 import { h } from 'preact'
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import htm from 'htm'
 import { ChatPanel } from './ChatPanel.js'
 import {
@@ -35,6 +35,10 @@ export function Inspector({
   onPrint,
   exporting,
   demo,
+  photo = null,
+  photo2 = null,
+  onPhotoFile,
+  onRemovePhoto2,
   messages = [],
   chatBusy = false,
   keyReady = false,
@@ -43,6 +47,7 @@ export function Inspector({
   onUndoChat,
 }) {
   const [tab, setTab] = useState('design')
+  const secondaryFileRef = useRef(null)
   const st = resolveStyle(scheme)
   const variant = VARIANTS[scheme.layout_variant]
   const ratio = contrastRatio(st.palette.accent, st.palette.background)
@@ -137,6 +142,51 @@ export function Inspector({
             `,
           )}
         </div>
+      </section>
+
+      <section class="insp-section">
+        <div class="insp-title"><span>图片槽位</span><em>Images</em></div>
+        <div class="slot-row">
+          <div class="slot-thumb">
+            ${photo ? html`<img src=${photo.dataUrl} alt="主图" />` : html`<span>主</span>`}
+          </div>
+          <div class="slot-meta">
+            <strong>主图</strong>
+            <span>${photo ? photo.name : '未上传 · 在左侧上传'}</span>
+          </div>
+        </div>
+        <div class="slot-row">
+          <div class="slot-thumb">
+            ${photo2 ? html`<img src=${photo2.dataUrl} alt="次图" />` : html`<span>＋</span>`}
+          </div>
+          <div class="slot-meta">
+            <strong>次图</strong>
+            <span>${photo2 ? photo2.name : '未上传 · 可使用占位'}</span>
+          </div>
+          <div class="slot-actions">
+            <button
+              class="slot-btn"
+              type="button"
+              onClick=${() => secondaryFileRef.current?.click()}
+            >
+              ${photo2 ? '更换' : '上传'}
+            </button>
+            ${photo2 &&
+            html`<button class="slot-btn" type="button" onClick=${onRemovePhoto2}>移除</button>`}
+          </div>
+        </div>
+        <input
+          ref=${secondaryFileRef}
+          type="file"
+          accept="image/*"
+          style="display:none"
+          onChange=${(event) => {
+            const file = event.currentTarget.files?.[0]
+            if (file) onPhotoFile?.(file, 'secondary')
+            event.currentTarget.value = ''
+          }}
+        />
+        <p class="insp-note">次图只在经典大报的报纸版显示；海报与其他版式保留单图。</p>
       </section>
 
       <section class="insp-section">

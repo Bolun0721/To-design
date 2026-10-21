@@ -146,6 +146,7 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
     }
 
     let caption = clampText(cleanText(content.caption), 30)
+    let captionSecondary = clampText(cleanText(content.caption_secondary), 30)
     let pullquote = clampText(cleanText(content.pullquote), 24)
 
     let bodyBlocks = paragraphsOf(content)
@@ -177,6 +178,17 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
     const name = clampText(cleanText(raw?.name), 8) || variantDef.name
     const rationale = clampText(cleanText(raw?.design_rationale), 40)
 
+    const placeholders = Array.isArray(content.image_placeholders)
+      ? content.image_placeholders
+          .filter((item) => item && typeof item === 'object')
+          .slice(0, 3)
+          .map((item) => ({
+            slot: cleanText(item.slot) === 'hero' ? 'hero' : 'secondary',
+            aspect_ratio: clampText(cleanText(item.aspect_ratio), 10) || '3:4',
+            purpose: clampText(cleanText(item.purpose), 30),
+          }))
+      : []
+
     return {
       id: slot.id,
       name,
@@ -194,11 +206,10 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
         subhead,
         body_blocks: bodyBlocks,
         caption,
+        caption_secondary: captionSecondary,
         pullquote,
         date: date || clampText(cleanText(content.date), 20) || chineseDate(),
-        image_placeholders: Array.isArray(content.image_placeholders)
-          ? content.image_placeholders.slice(0, 3)
-          : [],
+        image_placeholders: placeholders,
       },
       design_rationale: rationale || variantDef.tagline,
       layouts: {

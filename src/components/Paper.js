@@ -46,6 +46,7 @@ export function Paper({
   scheme,
   format = 'newspaper',
   photo = null,
+  photo2 = null,
   scale = 1,
   interactive = false,
   paperRef = null,
@@ -270,20 +271,31 @@ export function Paper({
     }
   }, [interactive, paperRef, scheme, format, commitRef, editRef])
 
-  const renderImage = (treatment) => html`
-    <figure class=${`hero treat-${treatment}`}>
-      ${photo
-        ? html`<img src=${photo.dataUrl} alt=${photo.name || '报纸配图'} draggable=${false} />`
-        : html`
-            <div class="hero-empty">
-              <span class="hero-plus">＋</span>
-              <span>上传照片后自动填入</span>
-              <span class="hero-hint">支持 JPG / PNG，建议 4:3 或 3:4</span>
-            </div>
-          `}
-      ${treatment === 'halftone_mono' && html`<span class="halftone-dots"></span>`}
-    </figure>
-  `
+  const renderImage = (treatment, slot = 'hero') => {
+    const isSecondary = slot === 'secondary'
+    const media = isSecondary ? photo2 : photo
+    const placeholder = (content.image_placeholders || []).find(
+      (item) => String(item?.slot || '').toLowerCase() === (isSecondary ? 'secondary' : 'hero'),
+    )
+    return html`
+      <figure class=${`hero treat-${treatment} ${isSecondary ? 'hero-secondary' : ''}`}>
+        ${media
+          ? html`<img src=${media.dataUrl} alt=${media.name || '报纸配图'} draggable=${false} />`
+          : html`
+              <div class=${`hero-empty ${isSecondary ? 'is-secondary' : ''}`}>
+                <span class="hero-plus">＋</span>
+                <span>${isSecondary ? '次图占位' : '上传照片后自动填入'}</span>
+                <span class="hero-hint">
+                  ${isSecondary
+                    ? placeholder?.purpose || '上传第二张照片，或保留占位'
+                    : '支持 JPG / PNG，建议 4:3 或 3:4'}
+                </span>
+              </div>
+            `}
+        ${treatment === 'halftone_mono' && html`<span class="halftone-dots"></span>`}
+      </figure>
+    `
+  }
 
   const useDropCap = scheme.layout_variant === 'classic_broadsheet' && format === 'newspaper'
 
@@ -291,6 +303,13 @@ export function Paper({
     const toneClass = block.tone === 'invert' ? 'tone-invert' : ''
     const alignClass = block.align === 'center' ? 'align-center' : ''
     const isBand = block.type === 'pullquote' && scheme.layout_variant === 'tabloid_bold'
+    const isSecondary = block.slot === 'secondary'
+    const label =
+      block.type === 'image' && isSecondary
+        ? '次图'
+        : block.type === 'caption' && isSecondary
+          ? '次图注'
+          : BLOCK_LABELS[block.type] || ''
     const z = 2 + index
 
     return html`
@@ -299,7 +318,7 @@ export function Paper({
         class=${`block b-${block.type} ${toneClass} ${alignClass} ${isBand ? 'is-band' : ''}`}
         data-block-id=${block.id}
         data-type=${block.type}
-        data-label=${BLOCK_LABELS[block.type] || ''}
+        data-label=${label}
         style=${`left:${block.x}%;top:${block.y}%;width:${block.w}%;${block.h != null ? `height:${block.h}%;` : ''}z-index:${z}`}
       >
         ${block.type === 'masthead' &&
@@ -338,13 +357,19 @@ export function Paper({
             <span>摄影 · 读者来稿</span>
           </div>
         `}
-        ${block.type === 'image' && renderImage(st.imageTreatment)}
+        ${block.type === 'image' && renderImage(st.imageTreatment, block.slot)}
         ${block.type === 'scrim' && html`<span class="scrim"></span>`}
         ${block.type === 'caption' &&
         html`
-          <figcaption class="caption">
+          <figcaption class=${`caption ${isSecondary ? 'caption-secondary' : ''}`}>
             <span class="cap-mark">图</span>
-            <span data-edit="caption">${content.caption || '照片说明待补充'}</span>
+            <span data-edit=${isSecondary ? 'caption_secondary' : 'caption'}>
+              ${isSecondary
+                ? photo2
+                  ? content.caption_secondary || '次图说明待补充'
+                  : '次图占位'
+                : content.caption || '照片说明待补充'}
+            </span>
           </figcaption>
         `}
         ${block.type === 'body' &&

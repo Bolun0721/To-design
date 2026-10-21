@@ -8,6 +8,13 @@ export const DEMO_PHOTO = {
   name: 'demo-coffee.jpg',
 }
 
+export const DEMO_PHOTO_2 = {
+  dataUrl: '/demo/coffee-2.jpg',
+  width: 1400,
+  height: 1050,
+  name: 'demo-window.jpg',
+}
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image()

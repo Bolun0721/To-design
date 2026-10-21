@@ -65,7 +65,8 @@ ${DESIGN_SKILL}
 7. 只使用 6 位大写十六进制颜色吗？不 —— 你**不输出任何色值**，颜色一律由 color_preset 决定。
 8. 正文用陈述句，不用感叹号堆砌；标题不用「震惊」「必看」「炸裂」等营销号话术。
 9. 不得输出 Markdown 围栏、注释、<script>、base64、emoji、图片 URL。
-10. 若某套方案需要额外配图而用户只给了一张照片，不要编造 URL，也不要复用同一张照片伪装多图；在 image_placeholders 中留空数组或按占位对象描述。
+10. 经典大报的报纸版支持「主图 + 次图」：如果用户提供了次图，写 caption_secondary；如果只有一张照片，不要复用同一张，次图用占位对象 { "slot": "secondary", "aspect_ratio": "3:4", "purpose": "次图内容" }，绝不编造图片 URL。
+11. image_placeholders 只在需要占位时输出；没有占位需求则输出空数组 []。
 
 # 版式库（layout_variant 白名单）
 
@@ -113,6 +114,7 @@ ${FONT_WHITELIST}
           { "type": "paragraph", "text": "正文段落二" }
         ],
         "caption": "图片说明",
+        "caption_secondary": "次图说明（可选，≤30字，仅经典大报）",
         "pullquote": "一句可被单独引用的短句",
         "date": "${date}",
         "image_placeholders": []
@@ -129,17 +131,33 @@ ${FONT_WHITELIST}
 - body 第一段给场景，第二段给细节，第三段给意义；不要写成朋友圈文案。
 - pullquote 从报道里提炼一句可独立成立的话，不要写成口号。
 - caption 描述画面里能看到的东西，不编造画面外的信息。
+- caption_secondary 仅在经典大报使用；描述次图的细节，不重复主图说明。
 - 日期使用输入中的当前日期。
 
 现在，根据输入生成 3 套方案。只输出 JSON。`
 }
 
-export function buildUserPrompt({ description, photoMeta, formatLabel, date, vision }) {
+export function buildUserPrompt({
+  description,
+  photoMeta,
+  secondaryPhotoMeta,
+  formatLabel,
+  date,
+  vision,
+}) {
   const photo = photoMeta
     ? `用户上传了 1 张照片（${photoMeta.width} × ${photoMeta.height}px，文件名「${photoMeta.name}」，画幅比例 ${(
         photoMeta.width / photoMeta.height
-      ).toFixed(2)}）${vision ? '，本轮你可以直接看到这张照片。' : '。你看不到照片内容，请只依据描述写稿，不要编造画面细节。'}`
+      ).toFixed(2)}）${
+        vision
+          ? `，本轮你可以直接看到${secondaryPhotoMeta ? '这两张照片' : '这张照片'}。`
+          : '。你看不到照片内容，请只依据描述写稿，不要编造画面细节。'
+      }`
     : '本轮没有上传照片。请按描述写稿，并在需要配图的位置使用占位说明。'
+
+  const secondaryPhoto = secondaryPhotoMeta
+    ? `用户还提供了 1 张次图（${secondaryPhotoMeta.width} × ${secondaryPhotoMeta.height}px，文件名「${secondaryPhotoMeta.name}」）。请为经典大报写 caption_secondary，描述这张次图的细节；如果你看不到次图，就写一句中性的说明，不要编造。`
+    : '没有提供次图。经典大报的次图请使用 image_placeholders 占位对象，不要复用主图，也不要编造 URL。'
 
   return `请按系统提示，为下面这条需求生成 3 套头版方案。
 
@@ -148,6 +166,9 @@ ${description || '（用户没有填写描述，请做合理假设，并在 summ
 
 【照片】
 ${photo}
+
+【次图】
+${secondaryPhoto}
 
 【画面格式】
 ${formatLabel}${formatLabel === '海报' ? '（海报只展示标题、副标题、主图与图注；正文仍要写，供切换到报纸模式时使用）' : '（A4 报纸头版，正文会以多栏排版，请控制段落长度）'}

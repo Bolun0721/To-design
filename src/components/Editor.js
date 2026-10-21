@@ -11,6 +11,7 @@ export function Editor({
   active,
   format,
   photo,
+  photo2,
   paperRef,
   disclaimer,
   onSelect,
@@ -67,6 +68,7 @@ export function Editor({
           scheme=${scheme}
           format=${format}
           photo=${photo}
+          photo2=${photo2}
           scale=${scale}
           interactive=${true}
           paperRef=${paperRef}

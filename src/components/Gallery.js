@@ -5,7 +5,7 @@ import { FORMATS, COLOR_PRESETS, VARIANTS } from '../config/presets.js'
 
 const html = htm.bind(h)
 
-export function Gallery({ schemes, summary, recommended, format, photo, onSelect, onRegenerate, busy }) {
+export function Gallery({ schemes, summary, recommended, format, photo, photo2, onSelect, onRegenerate, busy }) {
   const scale = format === 'poster' ? 0.3 : 0.275
 
   return html`
@@ -37,7 +37,7 @@ export function Gallery({ schemes, summary, recommended, format, photo, onSelect
             >
               ${scheme.id === recommended && html`<span class="card-badge">推荐</span>`}
               <div class="card-paper">
-                <${Paper} scheme=${scheme} format=${format} photo=${photo} scale=${scale} />
+                <${Paper} scheme=${scheme} format=${format} photo=${photo} photo2=${photo2} scale=${scale} />
               </div>
               <div class="card-top">
                 <span class="card-letter">${scheme.id}</span>

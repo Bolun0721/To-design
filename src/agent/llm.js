@@ -190,13 +190,18 @@ export async function requestSchemes({
   system,
   user,
   photoDataUrl,
+  photo2DataUrl,
   signal,
 }) {
+  const images = [photoDataUrl, photo2DataUrl].filter(Boolean)
   const userContent =
-    settings.vision && photoDataUrl
+    settings.vision && images.length
       ? [
           { type: 'text', text: user },
-          { type: 'image_url', image_url: { url: photoDataUrl, detail: 'low' } },
+          ...images.map((url) => ({
+            type: 'image_url',
+            image_url: { url, detail: 'low' },
+          })),
         ]
       : user
 

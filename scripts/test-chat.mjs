@@ -17,6 +17,7 @@ const { scheme: next, changed } = applyChatPatch(scheme, 'newspaper', {
   content: {
     headline: '这是一个被改过的标题',
     caption: '',
+    caption_secondary: '次图说明测试',
     body_blocks: ['第一段新的导语。', '第二段新的正文。'],
   },
   layout_moves: [{ block_id: 'headline', dx: 2, dy: 1 }, { block_id: 'nope', dx: 5 }],
@@ -32,6 +33,7 @@ assert.equal(next.style.image_treatment, 'halftone_mono')
 assert.equal(next.content.headline, '这是一个被改过的标题')
 assert.equal(next.content.body_blocks.length, 2)
 assert.ok(next.content.caption === '')
+assert.equal(next.content.caption_secondary, '次图说明测试')
 const afterBlock = next.layouts.newspaper.find((b) => b.id === 'headline')
 assert.equal(afterBlock.x, Math.round((beforeBlock.x + 2) * 10) / 10)
 assert.equal(afterBlock.y, Math.round((beforeBlock.y + 1) * 10) / 10)

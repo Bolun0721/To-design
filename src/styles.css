@@ -1967,6 +1967,25 @@ body.is-block-dragging {
   opacity: 0.7;
 }
 
+.hero-secondary .hero-empty {
+  gap: 4px;
+  padding: 0 9px;
+}
+
+.hero-secondary .hero-plus {
+  font-size: 26px;
+}
+
+.hero-secondary .hero-empty > span:nth-child(2) {
+  font-size: 9px;
+}
+
+.hero-secondary .hero-hint {
+  font-size: 7px;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
 .scrim {
   display: block;
   width: 100%;
@@ -2000,6 +2019,11 @@ body.is-block-dragging {
   color: var(--muted);
   max-height: 3.2em;
   overflow: hidden;
+}
+
+.caption-secondary {
+  font-size: 8.5px;
+  line-height: 1.5;
 }
 
 .cap-mark {

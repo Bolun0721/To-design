@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildDemoPayload } from '../src/agent/demoData.js'
+import { buildUserPrompt } from '../src/agent/systemPrompt.js'
 import { normalizeSchemes } from '../src/agent/validate.js'
 import { chineseDate } from '../src/lib/format.js'
 
@@ -16,8 +17,22 @@ for (const scheme of ok.schemes) {
   assert.ok(scheme.style.accent_color.startsWith('#'))
   assert.ok(scheme.content.headline.length <= 15)
 }
+assert.equal(ok.schemes[0].layouts.newspaper.some((b) => b.slot === 'secondary'), true)
+assert.ok(ok.schemes[0].content.caption_secondary.includes('午后'))
 assert.equal(ok.recommended, 'B')
+
+const prompt = buildUserPrompt({
+  description: '两杯咖啡',
+  photoMeta: { width: 1400, height: 1050, name: 'a.jpg' },
+  secondaryPhotoMeta: { width: 1400, height: 1050, name: 'b.jpg' },
+  formatLabel: '报纸',
+  date,
+  vision: true,
+})
+assert.ok(prompt.includes('这两张照片'))
+assert.ok(prompt.includes('caption_secondary'))
 console.log('✓ demo payload normalizes into 3 distinct schemes')
+console.log('✓ multi-image prompt includes secondary metadata and caption_secondary')
 
 const messy = {
   summary: '随便写写',

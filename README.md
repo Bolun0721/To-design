@@ -15,9 +15,10 @@
 2. 模型按内置的**报纸设计总监提示词 + 设计 Skill**，输出 3 套结构化方案（经典大报 / 小报冲击 / 极简报头）；
 3. 前端模板引擎做**确定性渲染**——颜色只能来自预设白名单，版式坐标由模板给出，模型只写内容；
 4. 用户并排比较三套方案，选一套进入画布：版块可拖动、可缩放、双击改字，主色 / 栏数 / 字号 / 图片处理实时重排；
-5. 右侧「对话微调」用一句话改这一版（标题放大、换配色、正文两栏、标题下移），模型返回最小 JSON patch，可撤销；
-6. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
-7. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
+5. 经典大报的报纸版支持「主图 + 次图」双图位：右侧「图片槽位」上传第二张，或保留占位块；
+6. 右侧「对话微调」用一句话改这一版（标题放大、换配色、正文两栏、标题下移），模型返回最小 JSON patch，可撤销；
+7. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
+8. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -95,13 +96,23 @@ Base URL：https://api.deepseek.com/v1
 
 | 方案 | 版式 | 配色 | 特征 | 适合 |
 |---|---|---|---|---|
-| A | `classic_broadsheet` 经典大报 | `classic_serious` 经典严肃 | 双线报头、全幅主图、三栏正文、红色首字 | 打印留存 / 纪念 |
+| A | `classic_broadsheet` 经典大报 | `classic_serious` 经典严肃 | 双线报头、**主图 + 次图双图位**、三栏正文、红色首字 | 打印留存 / 纪念 |
 | B | `tabloid_bold` 小报冲击 | `financial_daily` 财经日报 | 满版压图标题、强调色横幅、双栏 | 社交分享 / 活动 |
 | C | `minimal_masthead` 极简报头 | `newsprint_single_accent` 新闻纸单色 | 居中窄图、细线分区、大留白 | 展陈 / 画册 |
 
 同一套内容可在**报纸（A4 210×297）**与**海报（4:5 800×1000）**之间切换，两套版式坐标独立保存：
 
 ![海报模式](docs/04-poster.png)
+
+### 多图：经典大报的双图位
+
+- 报纸版的方案 A 使用 **主图 63% + 次图 25%** 的双图位，两张图各自有图注，都可拖动、缩放、单独导出；
+- 上传入口在右侧检查器「图片槽位」：主图沿用左侧上传，次图可在这里 **上传 / 更换 / 移除**；
+- 没有次图时渲染设计过的占位块，不会复用主图、不会编造 URL；
+- 海报与 B / C 版式保持单图，避免两张图抢同一个视觉焦点；
+- LLM 侧新增 `caption_secondary` 与 `image_placeholders[{ slot, aspect_ratio, purpose }]`，由前端校验后渲染。
+
+![多图导出](docs/08-export.png)
 
 颜色、字体、版式全部来自 `src/config/presets.js`（移植自 `newspaper-design-presets.json`）。模型不输出任何 hex 色值，越界会被前端硬校验回退。
 
@@ -133,9 +144,12 @@ Base URL：https://api.deepseek.com/v1
         "subhead": "…",
         "body_blocks": [{ "type": "paragraph", "text": "…" }],
         "caption": "…",
+        "caption_secondary": "次图说明（仅经典大报，可选）",
         "pullquote": "…",
         "date": "2026年10月20日",
-        "image_placeholders": []
+        "image_placeholders": [
+          { "slot": "secondary", "aspect_ratio": "3:4", "purpose": "次图占位说明" }
+        ]
       },
       "design_rationale": "正式报道腔，适合打印留存与纪念"
     }
@@ -151,6 +165,7 @@ Base URL：https://api.deepseek.com/v1
 - **缩放版块**：悬停右下角手柄拖动（图片块会同时改变高度）；
 - **双击改字**：标题 / 副标题 / 图注 / 引语 / 正文段落均可直接编辑，`Esc` 取消，`⌘/Ctrl+Enter` 提交；
 - **Tweak 控件**：主色（含对比度提示）、正文栏数 1/2/3、标题字号三档、图片处理（原图 / 黑白半调 / 双色调）、字体搭配；
+- **图片槽位**：主图 / 次图缩略图与上传状态；次图支持更换、移除，移除后自动变成占位块；
 - **对话微调**：右侧 tab，一句话 → 最小 patch，可撤销（见下节）；
 - **明暗主题**：顶栏切换暗色原版 / 米白 + 电光蓝，`localStorage` 记忆；
 - **导出**：html2canvas 2× PNG；打印把同一张高清图放进 `@page` A4 / 4:5 的打印窗口；
@@ -239,11 +254,13 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── config/presets.js
 │   └── lib/
 ├── public/
-│   ├── demo/coffee.jpg        # 程序化生成的示例照片
+│   ├── demo/coffee.jpg        # 程序化生成的示例照片（主图）
+│   ├── demo/coffee-2.jpg      # 程序化生成的示例照片（次图）
 │   └── vendor/                # preact / htm / html2canvas（浏览器直接加载）
 ├── scripts/
 │   ├── launch-demo.bat        # Windows 一键启动（桌面 .bat 调用）
-│   ├── make_demo_photo.py     # 生成示例照片（Pillow）
+│   ├── make_demo_photo.py     # 生成示例主图（Pillow）
+│   ├── make_demo_photo_2.py   # 生成示例次图（Pillow）
 │   ├── test-validate.mjs      # 校验层单测
 │   ├── test-chat.mjs          # 对话 patch 单测
 │   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
@@ -253,6 +270,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── cdp-generate.mjs       # 真实点击生成的端到端测试
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
+│   ├── cdp-multi.mjs          # 双图 → 占位 → 重新上传 自检
 │   └── cdp-modals.mjs         # 弹窗自检
 └── docs/                      # README 截图
 ```
@@ -278,6 +296,7 @@ node scripts/cdp-check.mjs
 node scripts/cdp-generate.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
+node scripts/cdp-multi.mjs
 node scripts/cdp-modals.mjs
 
 # 5. 导出矩阵：3 方案 × 2 格式 × 2 主题 = 12 例
@@ -287,7 +306,8 @@ node scripts/export-matrix.mjs
 当前自检结果：
 
 - `npm test` 通过（校验 / 对话 patch / CSS 颜色护栏）；
-- 导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.6s，**0 未捕获异常**；
+- 多图自检：示例 2 图 → 移除次图变占位（仍可导出）→ 重新上传恢复 2 图，0 异常；
+- 导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.6s，**0 未捕获异常**；经典大报的 2 张图也进入导出；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
@@ -307,11 +327,11 @@ node scripts/export-matrix.mjs
 - **主题只作用于外壳**：纸张 / 海报的配色仍由 `color_preset` 决定，切主题不会改变导出图片的颜色；
 - **拖动是自由拖动**，不是网格约束的 DTP；复杂版面仍建议按预设生成后再微调；
 - **字体依赖本机**：中文用宋体 / 苹方 / 思源回退，英文用 Playfair / Georgia；Google Fonts 为可选增强（非阻塞加载），离线时会回退；
-- **多图占位**：schema 里保留 `image_placeholders`，v1 只渲染主图；多图版式需要再加 block 类型；
+- **多图范围**：v1 只有经典大报的**报纸版**使用双图位；海报与 B / C 版式故意保持单图，避免视觉焦点分裂；
 - **iframe 沙箱**：v1 用命名空间隔离换取拖动稳定性；若要做嵌入式 / 多实例预览，下一步把 Paper 放进 srcdoc iframe，并用 postMessage 桥接拖动；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：多图 block → 本地草稿 / 对话历史 → iframe 沙箱 → 移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）已完成，见 `scripts/export-matrix.mjs` 与 `scripts/check-css.mjs`。
+下一步优先级：本地草稿 / 对话历史 → iframe 沙箱 → 移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）与 P1（经典大报双图位）已完成，见 `scripts/export-matrix.mjs`、`scripts/check-css.mjs`、`scripts/cdp-multi.mjs`。
 
 ---
 

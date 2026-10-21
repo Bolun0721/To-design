@@ -14,7 +14,7 @@ import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './ag
 import { normalizeSchemes, rebuildLayout } from './agent/validate.js'
 import { PROVIDERS, defaultSettings, requestEdit, requestSchemes } from './agent/llm.js'
 import { chineseDate, clampText, shortDate } from './lib/format.js'
-import { DEMO_PHOTO, readPhoto, renderTreatedPhoto } from './lib/image.js'
+import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto, renderTreatedPhoto } from './lib/image.js'
 import { downloadCanvas, printCanvas, renderPaperPng } from './lib/exportPaper.js'
 import { FORMATS, resolveStyle } from './config/presets.js'
 
@@ -55,6 +55,7 @@ export function App() {
   const [format, setFormat] = useState('newspaper')
   const [description, setDescription] = useState('')
   const [photo, setPhoto] = useState(null)
+  const [photo2, setPhoto2] = useState(null)
   const [settings, setSettings] = useState(loadSettings)
   const [apiKey, setApiKey] = useState(loadKey)
   const [schemes, setSchemes] = useState([])
@@ -173,7 +174,10 @@ export function App() {
         })
         applyResult(normalized)
         setDemoMode(true)
-        setPhoto((prev) => prev || DEMO_PHOTO)
+        if (!photo) {
+          setPhoto(DEMO_PHOTO)
+          setPhoto2(DEMO_PHOTO_2)
+        }
         setError('')
         if (letter) {
           const idx = normalized.schemes.findIndex((s) => s.id === letter)
@@ -188,7 +192,7 @@ export function App() {
         setError(`示例稿件载入失败：${err.message}`)
       }
     },
-    [applyResult, format],
+    [applyResult, format, photo],
   )
 
   useEffect(() => {
@@ -230,11 +234,13 @@ export function App() {
         user: buildUserPrompt({
           description,
           photoMeta: photo,
+          secondaryPhotoMeta: photo2,
           formatLabel: FORMATS[format].label,
           date,
-          vision: Boolean(settings.vision && photo),
+          vision: Boolean(settings.vision && (photo || photo2)),
         }),
         photoDataUrl: photo?.dataUrl,
+        photo2DataUrl: photo2?.dataUrl,
         signal: controller.signal,
       })
       const normalized = normalizeSchemes(result.json, { date, format })
@@ -256,12 +262,17 @@ export function App() {
   }, [apiKey, applyResult, busy, description, format, photo, settings, showToast])
 
   const handlePhotoFile = useCallback(
-    async (file) => {
+    async (file, slot = 'hero') => {
       try {
         const next = await readPhoto(file)
-        setPhoto(next)
+        if (slot === 'secondary') {
+          setPhoto2(next)
+          showToast('次图已载入')
+        } else {
+          setPhoto(next)
+          showToast('照片已载入')
+        }
         setError('')
-        showToast('照片已载入')
       } catch (err) {
         setError(err.message)
       }
@@ -306,6 +317,7 @@ export function App() {
           if (key === 'headline') content.headline = clampText(value, 60)
           else if (key === 'subhead') content.subhead = clampText(value, 80)
           else if (key === 'caption') content.caption = clampText(value, 80)
+          else if (key === 'caption_secondary') content.caption_secondary = clampText(value, 80)
           else if (key === 'pullquote') content.pullquote = clampText(value, 60)
           else if (key.startsWith('paragraph:')) {
             const i = Number(key.split(':')[1])
@@ -439,35 +451,50 @@ export function App() {
 
   const prepareExportImage = useCallback(async () => {
     const paper = paperRef.current
-    if (!paper || !photo || !activeScheme) return () => {}
-    const img = paper.querySelector('.hero img')
-    if (!img) return () => {}
+    if (!paper || !activeScheme) return () => {}
+    const images = [...paper.querySelectorAll('.hero img')]
+    if (!images.length) return () => {}
 
     const st = resolveStyle(activeScheme)
     const dots = [...paper.querySelectorAll('.halftone-dots')]
-    const previousSrc = img.getAttribute('src')
-    const displayWidth = img.clientWidth
+    const previousSrc = images.map((img) => img.getAttribute('src'))
+    const displayWidths = images.map((img) => img.clientWidth)
 
-    const treated = await renderTreatedPhoto(photo, st.imageTreatment, st.palette.accent, displayWidth)
-    if (treated && treated !== previousSrc) {
-      img.src = treated
-      try {
-        await img.decode()
-      } catch {
-        /* ignore */
-      }
-    }
+    const treated = await Promise.all(
+      images.map((img, index) =>
+        renderTreatedPhoto(
+          { dataUrl: img.src },
+          st.imageTreatment,
+          st.palette.accent,
+          displayWidths[index],
+        ),
+      ),
+    )
+    await Promise.all(
+      images.map(async (img, index) => {
+        if (treated[index] && treated[index] !== img.src) {
+          img.src = treated[index]
+          try {
+            await img.decode()
+          } catch {
+            /* ignore */
+          }
+        }
+      }),
+    )
     dots.forEach((el) => {
       el.style.display = 'none'
     })
 
     return () => {
-      if (previousSrc) img.src = previousSrc
+      images.forEach((img, index) => {
+        if (previousSrc[index]) img.src = previousSrc[index]
+      })
       dots.forEach((el) => {
         el.style.display = ''
       })
     }
-  }, [activeScheme, photo])
+  }, [activeScheme])
 
   const doExport = useCallback(async () => {
     if (!activeScheme || !paperRef.current || exporting) return
@@ -554,8 +581,7 @@ export function App() {
           onGenerate=${generate}
           onDemo=${() => loadDemo({ targetView: 'gallery' })}
           onPhotoFile=${handlePhotoFile}
-          onRemovePhoto=${() => setPhoto(null)}
-          error=${error}
+          onRemovePhoto=${() => setPhoto(null)}          error=${error}
           onDismissError=${() => setError('')}
         />
 
@@ -565,6 +591,7 @@ export function App() {
             <${Intro}
               demo=${demo}
               photo=${photo || DEMO_PHOTO}
+              photo2=${photo ? photo2 : photo2 || DEMO_PHOTO_2}
               onDemo=${() => loadDemo({ targetView: 'gallery' })}
               onOpenSkill=${() => setModal('skill')}
             />
@@ -577,6 +604,7 @@ export function App() {
               recommended=${recommended}
               format=${format}
               photo=${photo}
+              photo2=${photo2}
               busy=${busy}
               onSelect=${(index) => {
                 setActive(index)
@@ -593,6 +621,7 @@ export function App() {
               active=${active}
               format=${format}
               photo=${photo}
+              photo2=${photo2}
               paperRef=${paperRef}
               disclaimer=${meta.disclaimer}
               onSelect=${(index) => setActive(index)}
@@ -613,6 +642,10 @@ export function App() {
             warnings=${warnings}
             demo=${demoMode}
             exporting=${exporting}
+            photo=${photo}
+            photo2=${photo2}
+            onPhotoFile=${handlePhotoFile}
+            onRemovePhoto2=${() => setPhoto2(null)}
             messages=${chats[activeScheme.id] || []}
             chatBusy=${chatBusy}
             keyReady=${keyReady}
