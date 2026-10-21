@@ -15,11 +15,12 @@
 2. 模型按内置的**报纸设计总监提示词 + 设计 Skill**，输出 3 套结构化方案（经典大报 / 小报冲击 / 极简报头）；
 3. 前端模板引擎做**确定性渲染**——颜色只能来自预设白名单，版式坐标由模板给出，模型只写内容；
 4. 用户并排比较三套方案，选一套进入画布：版块可拖动、可缩放、双击改字，主色 / 栏数 / 字号 / 图片处理实时重排；
-5. 经典大报的报纸版支持「主图 + 次图」双图位：右侧「图片槽位」上传第二张，或保留占位块；
-6. 右侧「对话微调」用一句话改这一版（标题放大、换配色、正文两栏、标题下移），模型返回最小 JSON patch，可撤销；
-7. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
-8. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
-9. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
+5. 编辑器画布在**同源 iframe 沙箱**中渲染，拖动 / 双击 / 导出都在沙箱内完成，父页面只通过 `postMessage` 同步状态；
+6. 经典大报的报纸版支持「主图 + 次图」双图位：右侧「图片槽位」上传第二张，或保留占位块；
+7. 右侧「对话微调」用一句话改这一版（标题放大、换配色、正文两栏、标题下移），模型返回最小 JSON patch，可撤销；
+8. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
+9. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
+10. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -165,12 +166,13 @@ Base URL：https://api.deepseek.com/v1
 - **拖动版块**：按住任意版块拖动，带版心参考线和 5% / 中线吸附；显示实时坐标；
 - **缩放版块**：悬停右下角手柄拖动（图片块会同时改变高度）；
 - **双击改字**：标题 / 副标题 / 图注 / 引语 / 正文段落均可直接编辑，`Esc` 取消，`⌘/Ctrl+Enter` 提交；
+- **iframe 画布**：编辑器 Paper 渲染在同源 `srcdoc` iframe 内；父页面发送方案 / 缩放 / 主题，iframe 内处理拖动、双击和导出，再通过 `postMessage` 回传。父页面样式不会穿透到纸张（同源 CSS/DOM 隔离，不是安全边界）；
 - **Tweak 控件**：主色（含对比度提示）、正文栏数 1/2/3、标题字号三档、图片处理（原图 / 黑白半调 / 双色调）、字体搭配；
 - **图片槽位**：主图 / 次图缩略图与上传状态；次图支持更换、移除，移除后自动变成占位块；
 - **对话微调**：右侧 tab，一句话 → 最小 patch，可撤销（见下节）；
 - **明暗主题**：顶栏切换暗色原版 / 米白 + 电光蓝，`localStorage` 记忆；
-- **导出**：html2canvas 2× PNG；打印把同一张高清图放进 `@page` A4 / 4:5 的打印窗口；
-- 导出前会把半调 / 双色调**烘焙进图片像素**（html2canvas 不渲染 CSS filter），保证预览与导出基本一致；同时临时取消画布缩放，按 794×1123 / 800×1000 原始尺寸渲染。
+- **导出**：iframe 内 html2canvas 2× PNG，结果经 `postMessage` 回传父页面下载；打印把同一张高清图放进 `@page` A4 / 4:5 的打印窗口；
+- 导出前会把半调 / 双色调**烘焙进图片像素**（html2canvas 不渲染 CSS filter），保证预览与导出基本一致；同时临时取消 iframe 内的画布缩放，按 794×1123 / 800×1000 原始尺寸渲染。
   > 注意：html2canvas 1.4 不能解析 `color-mix()` 计算出的 `color(srgb …)`，纸张相关样式不要用 `color-mix`，否则导出会抛 `unsupported color function "color"`；当前纸张样式全部使用 hex / rgba。
 
 ![导出结果](docs/08-export.png)
@@ -220,11 +222,13 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        ├─ components/InputRail  素材 / 格式 / BYOK / 生成
        ├─ components/Gallery    三套方案并排
        ├─ components/Editor     画布 + 缩放 + 方案 tab
-       ├─ components/Paper      模板引擎：blocks → 报纸/海报 DOM
+       ├─ components/IframePaper iframe 沙箱宿主：状态发送 / 事件接收 / 导出请求
+       ├─ components/Paper      模板引擎：blocks → 报纸/海报 DOM（预览 + iframe 内）
        ├─ components/Inspector  设计 tab / 对话 tab + 图片槽位 + 导出 + JSON
        ├─ components/ChatPanel  对话消息 / 快捷指令 / 撤销
        ├─ components/DraftsModal 草稿列表 / 打开 / 删除 / 新建
        └─ components/Modals     Skill / Prompt / JSON 查看
+  └─ sandbox/entry.js           iframe 内入口：渲染 Paper、拖动/改字、html2canvas 导出
   └─ agent/
        ├─ systemPrompt.js       生成提示词 + Schema + 白名单
        ├─ designSkill.js        内置设计 Skill
@@ -246,7 +250,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 | 点选深入 | 点卡片进入大画布，顶部 tab 切换 |
 | Tweak controls | 主色 / 栏数 / 标题字号 / 图片处理 |
 | 持续对话 | 右侧「对话微调」：一句话 → 最小 JSON patch → 可撤销 |
-| iframe 沙箱预览 | **v1 未用 iframe**：`.paper` 独立命名空间 + CSS 变量隔离，拖动不跨 iframe，html2canvas 直接捕获；iframe 留到需要更强隔离 / 嵌入时再加 |
+| iframe 沙箱画布 | 编辑器 Paper 渲染在同源 srcdoc iframe 内；拖动 / 双击 / 导出在沙箱内，`postMessage` 回传；父页面样式不穿透 |
 | 确定性导出 | 2× PNG + 打印 PDF |
 | BYOK 本地优先 | Key 只存 sessionStorage，中继不落盘 |
 | 本地 daemon | 不需要：模型只写 JSON，不碰文件系统 |
@@ -266,7 +270,8 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── styles.css             # 工作室外壳 + 报纸模板样式
 │   ├── theme-chat.css         # 明暗主题 + 对话面板
 │   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch
-│   ├── components/            # Paper / Inspector / ChatPanel / DraftsModal …
+│   ├── components/            # Paper / IframePaper / Inspector / ChatPanel / DraftsModal …
+│   ├── sandbox/entry.js       # iframe 内渲染 / 拖动 / 改字 / 导出
 │   ├── config/presets.js
 │   └── lib/                   # image / exportPaper / drafts（IndexedDB 草稿）
 ├── public/
@@ -282,7 +287,8 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
 │   ├── export-matrix.mjs      # 3 方案 × 2 格式 × 2 主题 导出矩阵
 │   ├── mock-llm.mjs           # 本地 mock 模型（生成 + 对话 patch）
-│   ├── cdp-check.mjs          # 拖动 / 改字 / 换色 / 导出 自检
+│   ├── cdp-check.mjs          # iframe 隔离：父页面无 .paper / 样式不穿透
+│   ├── cdp-sandbox.mjs        # iframe 内拖动 / 双击 / 换色 / 导出 自检
 │   ├── cdp-generate.mjs       # 真实点击生成的端到端测试
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
@@ -310,6 +316,7 @@ node server.mjs
 #    msedge --headless=new --remote-debugging-port=9222 \
 #      --user-data-dir=%TEMP%\edge-demo http://127.0.0.1:5173/?demo=1&scheme=B
 node scripts/cdp-check.mjs
+node scripts/cdp-sandbox.mjs
 node scripts/cdp-generate.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
@@ -324,9 +331,11 @@ node scripts/export-matrix.mjs
 当前自检结果：
 
 - `npm test` 通过（校验 / 对话 patch / CSS 颜色护栏）；
+- iframe 隔离：父页面不再渲染 `.paper`，iframe 内 12 个版块；父页面注入 `.headline` 样式不穿透，0 异常；
+- iframe 交互：沙箱内拖动（left 5→10）、双击改字、换色回渲染；父页面触发导出得到 1588×2246 PNG，0 异常；
 - 多图自检：示例 2 图 → 移除次图变占位（仍可导出）→ 重新上传恢复 2 图，0 异常；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
-- 导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.6s，**0 未捕获异常**；经典大报的 2 张图也进入导出；
+- 导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；经典大报的 2 张图也进入导出；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
@@ -341,17 +350,17 @@ node scripts/export-matrix.mjs
 ## 已知边界 / 下一步
 
 - **不生成照片**：图片来自用户上传；没有图片模型，也不编造 URL；无图时渲染占位块；
-- **没有后端与账号**：不持久化项目、不存 Key、不做多人协作；
+- **没有后端与账号**：项目只存本机 IndexedDB，不存 Key，不做多人协作；
 - **对话是短上下文**：每次只带当前方案和最近 4 句，不做长期记忆；要整版重构，重新生成更稳；
 - **主题只作用于外壳**：纸张 / 海报的配色仍由 `color_preset` 决定，切主题不会改变导出图片的颜色；
 - **拖动是自由拖动**，不是网格约束的 DTP；复杂版面仍建议按预设生成后再微调；
 - **字体依赖本机**：中文用宋体 / 苹方 / 思源回退，英文用 Playfair / Georgia；Google Fonts 为可选增强（非阻塞加载），离线时会回退；
 - **多图范围**：v1 只有经典大报的**报纸版**使用双图位；海报与 B / C 版式故意保持单图，避免视觉焦点分裂；
-- **iframe 沙箱**：v1 用命名空间隔离换取拖动稳定性；若要做嵌入式 / 多实例预览，下一步把 Paper 放进 srcdoc iframe，并用 postMessage 桥接拖动；
+- **iframe 是同源隔离**：用于 CSS / DOM / 选择隔离，不宣称是安全沙箱；跨域嵌入或多实例需要额外 `sandbox` 属性与消息白名单；
 - **草稿只在本机**：IndexedDB 按浏览器 / 设备隔离，没有账号同步；清理浏览器数据会删除草稿；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：iframe 沙箱 → 移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）已完成，见 `scripts/export-matrix.mjs`、`scripts/check-css.mjs`、`scripts/cdp-multi.mjs`、`scripts/cdp-drafts.mjs`。
+下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）与 iframe 沙箱已完成，见 `scripts/export-matrix.mjs`、`scripts/check-css.mjs`、`scripts/cdp-check.mjs`、`scripts/cdp-sandbox.mjs`、`scripts/cdp-drafts.mjs`。
 
 ---
 

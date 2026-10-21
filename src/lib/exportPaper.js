@@ -51,8 +51,7 @@ export function downloadCanvas(canvas, filename) {
   })
 }
 
-export function printCanvas(canvas, { widthMm, heightMm, title = '头版智造局' }) {
-  const dataUrl = canvas.toDataURL('image/png')
+export function printDataUrl(dataUrl, { widthMm, heightMm, title = '头版智造局' }) {
   const win = window.open('', '_blank', 'width=900,height=1200')
   if (!win) throw new Error('浏览器拦截了打印窗口，请允许弹窗后重试')
 
@@ -74,4 +73,22 @@ export function printCanvas(canvas, { widthMm, heightMm, title = '头版智造�
   setTimeout(() => {
     win.print()
   }, 450)
+}
+
+export async function downloadDataUrl(dataUrl, filename) {
+  const response = await fetch(dataUrl)
+  const blob = await response.blob()
+  if (!blob) throw new Error('生成图片失败')
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 4000)
+}
+
+export function printCanvas(canvas, options) {
+  printDataUrl(canvas.toDataURL('image/png'), options)
 }

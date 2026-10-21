@@ -164,7 +164,7 @@ for (const item of CASES) {
     await call('Page.navigate', { url })
     await waitFor(
       `Boolean(document.querySelector('.action-btn.primary')) &&
-       Boolean(document.querySelector('.paper.format-${item.format}'))`,
+       Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper.format-${item.format}'))`,
       `${name} 编辑器`,
     )
     await sleep(700)
@@ -173,7 +173,7 @@ for (const item of CASES) {
       theme: await evaluate(`document.documentElement.dataset.theme`),
       scheme: await evaluate(`document.querySelector('.scheme-tab.active .letter')?.innerText?.trim()`),
       format: await evaluate(
-        `document.querySelector('.paper')?.classList.contains('format-${item.format}')`,
+        `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper')?.classList.contains('format-${item.format}')`,
       ),
     }
 
@@ -182,7 +182,9 @@ for (const item of CASES) {
     if (actual.format !== true) record.reasons.push('格式 class 不匹配')
 
     if (item.scheme === 'A' && item.format === 'newspaper') {
-      const imageCount = await evaluate(`document.querySelectorAll('.paper .hero img').length`)
+      const imageCount = await evaluate(
+        `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelectorAll('.paper .hero img').length || 0`,
+      )
       if (imageCount !== 2) record.reasons.push(`经典大报图片数=${imageCount}，期望 2`)
     }
 

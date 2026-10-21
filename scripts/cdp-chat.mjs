@@ -95,6 +95,10 @@ await evaluate(
   `[...document.querySelectorAll('.insp-tab')].find((b) => b.innerText.includes('对话')).click(); true;`,
 )
 await waitFor(`document.querySelector('.chat-input')`, '对话面板')
+await waitFor(
+  `Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper'))`,
+  'iframe 画布',
+)
 
 await evaluate(`(() => {
   const el = document.querySelector('.chat-input');
@@ -110,9 +114,11 @@ await sleep(700)
 const results = {}
 results.reply = await evaluate(`document.querySelector('.chat-msg.assistant .chat-text')?.innerText`)
 results.applied = await evaluate(`document.querySelector('.chat-applied')?.innerText`)
-results.headline = await evaluate(`document.querySelector('.headline')?.innerText`)
+results.headline = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('.headline')?.innerText`,
+)
 results.accent = await evaluate(
-  `getComputedStyle(document.querySelector('.paper')).getPropertyValue('--accent').trim()`,
+  `getComputedStyle(document.querySelector('iframe.paper-frame').contentDocument.querySelector('.paper')).getPropertyValue('--accent').trim()`,
 )
 results.theme = await evaluate(`document.documentElement.dataset.theme`)
 results.messages = await evaluate(
@@ -125,14 +131,19 @@ await fs.writeFile(new URL('chat-light.png', OUT), Buffer.from(shot.result.data,
 
 await evaluate(`document.querySelector('.chat-undo').click(); true;`)
 await sleep(600)
-results.headlineAfterUndo = await evaluate(`document.querySelector('.headline')?.innerText`)
+results.headlineAfterUndo = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('.headline')?.innerText`,
+)
 results.accentAfterUndo = await evaluate(
-  `getComputedStyle(document.querySelector('.paper')).getPropertyValue('--accent').trim()`,
+  `getComputedStyle(document.querySelector('iframe.paper-frame').contentDocument.querySelector('.paper')).getPropertyValue('--accent').trim()`,
 )
 
 await evaluate(`document.querySelector('.theme-btn').click(); true;`)
-await sleep(350)
+await sleep(500)
 results.themeAfterToggle = await evaluate(`document.documentElement.dataset.theme`)
+results.iframeTheme = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.documentElement.dataset.theme`,
+)
 results.storedTheme = await evaluate(`localStorage.getItem('fpl.theme.v1')`)
 
 console.log(JSON.stringify({ ...results, exceptions: exceptions.length }, null, 2))
@@ -141,6 +152,7 @@ if (results.headline !== '夜色里的手冲') throw new Error('对话 patch 没
 if (results.accent.toLowerCase() !== '#8b1538') throw new Error(`配色 patch 未生效：${results.accent}`)
 if (results.headlineAfterUndo !== '巷口那杯手冲') throw new Error('撤销没有恢复标题')
 if (results.themeAfterToggle !== 'dark') throw new Error('主题切换没有生效')
+if (results.iframeTheme !== 'dark') throw new Error('iframe 主题没有跟随父页面')
 if (results.storedTheme !== 'dark') throw new Error('主题没有持久化')
 if (exceptions.length) throw new Error('页面存在未捕获异常')
 

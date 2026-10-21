@@ -1,7 +1,7 @@
 import { h } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import htm from 'htm'
-import { Paper } from './Paper.js'
+import { IframePaper } from './IframePaper.js'
 import { FORMATS } from '../config/presets.js'
 
 const html = htm.bind(h)
@@ -12,7 +12,8 @@ export function Editor({
   format,
   photo,
   photo2,
-  paperRef,
+  theme,
+  sandboxRef,
   disclaimer,
   onSelect,
   onBack,
@@ -64,17 +65,17 @@ export function Editor({
       </header>
 
       <div class="stage" ref=${stageRef}>
-        <${Paper}
+        <${IframePaper}
           scheme=${scheme}
           format=${format}
           photo=${photo}
           photo2=${photo2}
           scale=${scale}
-          interactive=${true}
-          paperRef=${paperRef}
+          theme=${theme}
           disclaimer=${disclaimer}
           onBlockCommit=${onBlockCommit}
           onEditText=${onEditText}
+          controllerRef=${sandboxRef}
         />
         <span class="stage-zoom">缩放 ${Math.round(scale * 100)}%</span>
         <span class="stage-hint">拖动任意版块 · 双击文字修改 · 右下角拖动缩放</span>

@@ -96,6 +96,10 @@ await call('Page.navigate', {
   url: 'http://127.0.0.1:5173/?demo=1&scheme=A&theme=light',
 })
 await waitFor(`document.querySelector('.action-btn.primary')`, '编辑器')
+await waitFor(
+  `Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper'))`,
+  'iframe 画布',
+)
 await sleep(700)
 
 const results = { theme: await evaluate(`document.documentElement.dataset.theme`) }

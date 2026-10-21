@@ -100,13 +100,15 @@ await call('Page.navigate', {
   url: 'http://127.0.0.1:5173/?demo=1&scheme=A&theme=light',
 })
 await waitFor(
-  `document.querySelectorAll('.paper .hero img').length === 2 &&
+  `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelectorAll('.paper .hero img').length === 2 &&
    Boolean(document.querySelector('.slot-row .slot-thumb img'))`,
   '两图初态',
 )
 
 const results = {}
-results.initialImages = await evaluate(`document.querySelectorAll('.paper .hero img').length`)
+results.initialImages = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelectorAll('.paper .hero img').length`,
+)
 results.slotRows = await evaluate(`document.querySelectorAll('.slot-row').length`)
 
 // 移除次图
@@ -117,13 +119,15 @@ await evaluate(`(() => {
   return Boolean(btn);
 })()`)
 await waitFor(
-  `document.querySelectorAll('.paper .hero img').length === 1 &&
-   Boolean(document.querySelector('[data-block-id="secondary"] .hero-empty'))`,
+  `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelectorAll('.paper .hero img').length === 1 &&
+   Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero-empty'))`,
   '次图占位',
 )
-results.afterRemoveImages = await evaluate(`document.querySelectorAll('.paper .hero img').length`)
+results.afterRemoveImages = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelectorAll('.paper .hero img').length`,
+)
 results.placeholderText = await evaluate(
-  `document.querySelector('[data-block-id="secondary"] .hero-empty')?.innerText`,
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero-empty')?.innerText`,
 )
 
 await fs.mkdir(DOWNLOAD, { recursive: true })
@@ -145,13 +149,15 @@ await call('DOM.setFileInputFiles', {
   files: [SECONDARY_FILE],
 })
 await waitFor(
-  `document.querySelectorAll('.paper .hero img').length === 2 &&
-   Boolean(document.querySelector('[data-block-id="secondary"] .hero img'))`,
+  `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelectorAll('.paper .hero img').length === 2 &&
+   Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero img'))`,
   '次图已上传',
 )
-results.restoredImages = await evaluate(`document.querySelectorAll('.paper .hero img').length`)
+results.restoredImages = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelectorAll('.paper .hero img').length`,
+)
 results.captionSecondary = await evaluate(
-  `document.querySelector('[data-block-id="secondaryCaption"] .caption')?.innerText`,
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondaryCaption"] .caption')?.innerText`,
 )
 results.exceptions = exceptions.length
 

@@ -15,8 +15,8 @@ import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './ag
 import { normalizeSchemes, rebuildLayout } from './agent/validate.js'
 import { PROVIDERS, defaultSettings, requestEdit, requestSchemes } from './agent/llm.js'
 import { chineseDate, clampText, shortDate } from './lib/format.js'
-import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto, renderTreatedPhoto } from './lib/image.js'
-import { downloadCanvas, printCanvas, renderPaperPng } from './lib/exportPaper.js'
+import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto } from './lib/image.js'
+import { downloadDataUrl, printDataUrl } from './lib/exportPaper.js'
 import { FORMATS, resolveStyle } from './config/presets.js'
 import {
   clearCurrentDraftId,
@@ -92,7 +92,7 @@ export function App() {
   const [saveState, setSaveState] = useState('idle')
   const [restoringDraft, setRestoringDraft] = useState(true)
 
-  const paperRef = useRef(null)
+  const sandboxRef = useRef(null)
   const abortRef = useRef(null)
   const chatAbortRef = useRef(null)
   const toastTimer = useRef(null)
@@ -715,66 +715,19 @@ export function App() {
     showToast('版式已重置')
   }, [active, format, showToast])
 
-  const prepareExportImage = useCallback(async () => {
-    const paper = paperRef.current
-    if (!paper || !activeScheme) return () => {}
-    const images = [...paper.querySelectorAll('.hero img')]
-    if (!images.length) return () => {}
-
-    const st = resolveStyle(activeScheme)
-    const dots = [...paper.querySelectorAll('.halftone-dots')]
-    const previousSrc = images.map((img) => img.getAttribute('src'))
-    const displayWidths = images.map((img) => img.clientWidth)
-
-    const treated = await Promise.all(
-      images.map((img, index) =>
-        renderTreatedPhoto(
-          { dataUrl: img.src },
-          st.imageTreatment,
-          st.palette.accent,
-          displayWidths[index],
-        ),
-      ),
-    )
-    await Promise.all(
-      images.map(async (img, index) => {
-        if (treated[index] && treated[index] !== img.src) {
-          img.src = treated[index]
-          try {
-            await img.decode()
-          } catch {
-            /* ignore */
-          }
-        }
-      }),
-    )
-    dots.forEach((el) => {
-      el.style.display = 'none'
-    })
-
-    return () => {
-      images.forEach((img, index) => {
-        if (previousSrc[index]) img.src = previousSrc[index]
-      })
-      dots.forEach((el) => {
-        el.style.display = ''
-      })
-    }
-  }, [activeScheme])
-
   const doExport = useCallback(async () => {
-    if (!activeScheme || !paperRef.current || exporting) return
+    if (!activeScheme || exporting) return
     setExporting(true)
-    let restore = () => {}
     try {
-      restore = await prepareExportImage()
       const st = resolveStyle(activeScheme)
-      const canvas = await renderPaperPng(paperRef.current, {
+      const sandbox = sandboxRef.current
+      if (!sandbox) throw new Error('画布还没准备好，请稍后再试')
+      const result = await sandbox.exportPng({
         scale: 2,
         background: st.palette.background,
       })
-      await downloadCanvas(
-        canvas,
+      await downloadDataUrl(
+        result.dataUrl,
         `头版智造局_${activeScheme.name}_${FORMATS[format].label}_${shortDate()}.png`,
       )
       showToast('PNG 已导出（2× 分辨率）')
@@ -782,23 +735,22 @@ export function App() {
       setError(`导出失败：${err.message}`)
       showToast('导出失败，请重试', 'error')
     } finally {
-      restore()
       setExporting(false)
     }
-  }, [activeScheme, exporting, format, prepareExportImage, showToast])
+  }, [activeScheme, exporting, format, showToast])
 
   const doPrint = useCallback(async () => {
-    if (!activeScheme || !paperRef.current || exporting) return
+    if (!activeScheme || exporting) return
     setExporting(true)
-    let restore = () => {}
     try {
-      restore = await prepareExportImage()
       const st = resolveStyle(activeScheme)
-      const canvas = await renderPaperPng(paperRef.current, {
+      const sandbox = sandboxRef.current
+      if (!sandbox) throw new Error('画布还没准备好，请稍后再试')
+      const result = await sandbox.exportPng({
         scale: 2,
         background: st.palette.background,
       })
-      printCanvas(canvas, {
+      printDataUrl(result.dataUrl, {
         widthMm: format === 'newspaper' ? 210 : 200,
         heightMm: format === 'newspaper' ? 297 : 250,
         title: `头版智造局 · ${activeScheme.name}`,
@@ -806,10 +758,9 @@ export function App() {
     } catch (err) {
       setError(`打印失败：${err.message}`)
     } finally {
-      restore()
       setExporting(false)
     }
-  }, [activeScheme, exporting, format, prepareExportImage])
+  }, [activeScheme, exporting, format])
 
   const regenerate = useCallback(() => {
     if (keyReady) generate()
@@ -891,7 +842,8 @@ export function App() {
               format=${format}
               photo=${photo}
               photo2=${photo2}
-              paperRef=${paperRef}
+              theme=${theme}
+              sandboxRef=${sandboxRef}
               disclaimer=${meta.disclaimer}
               onSelect=${(index) => setActive(index)}
               onBack=${() => setView('gallery')}

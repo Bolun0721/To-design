@@ -97,6 +97,10 @@ await call('Page.navigate', {
   url: 'http://127.0.0.1:5173/?demo=1&scheme=A&theme=light',
 })
 await waitFor(`document.querySelectorAll('.insp-tab').length >= 2`, '编辑器')
+await waitFor(
+  `Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper'))`,
+  'iframe 画布',
+)
 await sleep(500)
 
 // 对话修改：标题 + 配色
@@ -132,10 +136,17 @@ await sleep(300)
 
 // 刷新（去掉 ?demo，模拟重新打开页面）
 await call('Page.navigate', { url: 'http://127.0.0.1:5173/' })
-await waitFor(`Boolean(document.querySelector('.paper')) && Boolean(document.querySelector('.headline'))`, '草稿恢复')
+await waitFor(
+  `Boolean(document.querySelector('.editor')) &&
+   Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper')) &&
+   Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('.headline'))`,
+  '草稿恢复',
+)
 await sleep(700)
 
-results.restoredHeadline = await evaluate(`document.querySelector('.headline')?.innerText`)
+results.restoredHeadline = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('.headline')?.innerText`,
+)
 results.restoredScheme = await evaluate(`document.querySelector('.scheme-tab.active .letter')?.innerText`)
 results.restoredView = await evaluate(`Boolean(document.querySelector('.editor')) ? 'editor' : 'other'`)
 results.restoredDraftId = await evaluate(`localStorage.getItem('fpl.draft.current.v1')`)
@@ -173,9 +184,16 @@ await evaluate(`(() => {
   if (btn) btn.click();
   return Boolean(btn);
 })()`)
-await waitFor(`Boolean(document.querySelector('.paper')) && Boolean(document.querySelector('.headline'))`, '从列表打开草稿')
+await waitFor(
+  `Boolean(document.querySelector('.editor')) &&
+   Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper')) &&
+   Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('.headline'))`,
+  '从列表打开草稿',
+)
 await sleep(500)
-results.reopenedHeadline = await evaluate(`document.querySelector('.headline')?.innerText`)
+results.reopenedHeadline = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('.headline')?.innerText`,
+)
 results.reopenedCurrent = await evaluate(`localStorage.getItem('fpl.draft.current.v1')`)
 
 // 删除当前草稿
