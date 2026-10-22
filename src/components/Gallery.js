@@ -2,11 +2,25 @@ import { h } from 'preact'
 import htm from 'htm'
 import { Paper } from './Paper.js'
 import { FORMATS, COLOR_PRESETS, VARIANTS } from '../config/presets.js'
+import { getStylePack } from '../config/stylePacks.js'
 
 const html = htm.bind(h)
 
-export function Gallery({ schemes, summary, recommended, format, photo, photo2, onSelect, onRegenerate, busy }) {
+export function Gallery({
+  schemes,
+  summary,
+  recommended,
+  format,
+  photo,
+  photo2,
+  stylePack = 'classic',
+  onCycleStylePack,
+  onSelect,
+  onRegenerate,
+  busy,
+}) {
   const scale = format === 'poster' ? 0.3 : 0.275
+  const pack = getStylePack(stylePack)
 
   return html`
     <section class="gallery">
@@ -20,6 +34,17 @@ export function Gallery({ schemes, summary, recommended, format, photo, photo2, 
           <strong>${recommended || 'B'}</strong>
         </div>
       </header>
+
+      <div class="gallery-pack">
+        <span class="pack-kicker">风格包</span>
+        <strong class="pack-name">${pack.name}</strong>
+        <span class="pack-en">${pack.en}</span>
+        <span class="pack-tagline">${pack.tagline}</span>
+        <button class="pack-cycle" type="button" onClick=${onCycleStylePack} disabled=${busy || !schemes.length}>
+          换一组 →
+        </button>
+        <span class="pack-count">3 / 9 种</span>
+      </div>
 
       <div class="gallery-cards">
         ${schemes.map((scheme, index) => {
@@ -61,10 +86,13 @@ export function Gallery({ schemes, summary, recommended, format, photo, photo2, 
         })}
       </div>
 
-      <div style="margin-top:24px; display:flex; gap:10px; align-items:center">
+      <div style="margin-top:24px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
         <button class="btn" onClick=${onRegenerate} disabled=${busy}>${busy ? '生成中…' : '重新生成三套'}</button>
+        <button class="btn" onClick=${onCycleStylePack} disabled=${busy || !schemes.length}>
+          再换三种风格 →
+        </button>
         <span style="font-size:9px; color:var(--muted-2); letter-spacing:.08em">
-          想换方向？回到左侧改一句描述，再生成一次。
+          换风格保留内容和稿子，只重排版式、配色与字体。
         </span>
       </div>
     </section>

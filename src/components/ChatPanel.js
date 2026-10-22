@@ -5,7 +5,16 @@ import { CHAT_SUGGESTIONS } from '../agent/chat.js'
 
 const html = htm.bind(h)
 
-export function ChatPanel({ messages = [], busy = false, keyReady = false, canUndo = false, onSend, onUndo }) {
+export function ChatPanel({
+  messages = [],
+  busy = false,
+  keyReady = false,
+  canUndo = false,
+  reference = null,
+  onClearReference,
+  onSend,
+  onUndo,
+}) {
   const [text, setText] = useState('')
   const listRef = useRef(null)
   const inputRef = useRef(null)
@@ -15,10 +24,17 @@ export function ChatPanel({ messages = [], busy = false, keyReady = false, canUn
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, busy])
 
+  useEffect(() => {
+    if (reference?.nonce && inputRef.current) inputRef.current.focus()
+  }, [reference?.nonce])
+
   const submit = (value) => {
     const instruction = String(value ?? text).trim()
     if (!instruction || busy || !keyReady) return
-    onSend(instruction)
+    const prefix = reference
+      ? `【引用板块：${reference.label || reference.id}（${reference.id}）】`
+      : ''
+    onSend(`${prefix}${instruction}`)
     setText('')
     if (inputRef.current) inputRef.current.focus()
   }
@@ -92,6 +108,24 @@ export function ChatPanel({ messages = [], busy = false, keyReady = false, canUn
         )}
       </div>
 
+      ${reference
+        ? html`
+            <div class="chat-reference">
+              <span class="chat-ref-kicker">引用板块</span>
+              <strong>${reference.label || reference.id}</strong>
+              <span class="chat-ref-id">${reference.id}</span>
+              <button
+                class="chat-ref-clear"
+                type="button"
+                title="取消引用"
+                onClick=${onClearReference}
+              >
+                ×
+              </button>
+            </div>
+          `
+        : null}
+
       <div class="chat-compose">
         <textarea
           ref=${inputRef}
@@ -99,7 +133,11 @@ export function ChatPanel({ messages = [], busy = false, keyReady = false, canUn
           rows="2"
           value=${text}
           disabled=${busy || !keyReady}
-          placeholder=${keyReady ? '例如：标题再大一点，换成财经日报配色…' : '请先填写 API Key'}
+          placeholder=${keyReady
+            ? reference
+              ? `针对「${reference.label || reference.id}」说明要改什么…`
+              : '例如：标题再大一点，换成财经日报配色…'
+            : '请先填写 API Key'}
           onInput=${(event) => setText(event.currentTarget.value)}
           onKeyDown=${onKeyDown}
         ></textarea>

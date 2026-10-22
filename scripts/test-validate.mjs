@@ -3,6 +3,8 @@ import { buildDemoPayload } from '../src/agent/demoData.js'
 import { buildUserPrompt } from '../src/agent/systemPrompt.js'
 import { normalizeSchemes } from '../src/agent/validate.js'
 import { chineseDate } from '../src/lib/format.js'
+import { applyStylePack, nextStylePack, STYLE_PACKS } from '../src/config/stylePacks.js'
+import { VARIANTS } from '../src/config/presets.js'
 
 const date = '2026年10月20日'
 const demo = buildDemoPayload({ date, format: 'newspaper' })
@@ -33,6 +35,25 @@ assert.ok(prompt.includes('这两张照片'))
 assert.ok(prompt.includes('caption_secondary'))
 console.log('✓ demo payload normalizes into 3 distinct schemes')
 console.log('✓ multi-image prompt includes secondary metadata and caption_secondary')
+
+const geometry = applyStylePack(ok.schemes, 'geometry')
+assert.deepEqual(
+  geometry.map((scheme) => scheme.layout_variant),
+  ['constructivism', 'bauhaus', 'de_stijl'],
+)
+assert.equal(geometry[0].content.headline, ok.schemes[0].content.headline)
+assert.equal(geometry[1].color_preset, 'bauhaus_primary')
+assert.ok(geometry[0].layouts.newspaper.length >= 9)
+assert.ok(geometry[0].layouts.poster.length >= 5)
+for (const pack of STYLE_PACKS) {
+  for (const variantId of pack.variants) {
+    assert.ok(VARIANTS[variantId], `${pack.id} 缺少版式 ${variantId}`)
+  }
+}
+assert.equal(nextStylePack('classic').id, 'geometry')
+assert.equal(nextStylePack('geometry').id, 'system')
+assert.equal(nextStylePack('system').id, 'classic')
+console.log('✓ 9 style variants form 3 packs and preserve content when switching')
 
 const messy = {
   summary: '随便写写',

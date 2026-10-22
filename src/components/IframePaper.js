@@ -20,7 +20,7 @@ const SRCDOC = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/src/styles.css" />
 <link rel="stylesheet" href="/src/theme-chat.css" />
 <style>
@@ -53,12 +53,80 @@ const SRCDOC = `<!doctype html>
   body.is-block-dragging * {
     cursor: grabbing !important;
   }
+  #selection-hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 300;
+  }
+  .select-card {
+    position: absolute;
+    width: 184px;
+    padding: 10px 11px 9px;
+    border: 1px solid var(--accent, #c8102e);
+    background: #151517;
+    color: #f5f0e6;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  html[data-theme="light"] .select-card {
+    background: #fffdf7;
+    color: #17181c;
+    box-shadow: 0 16px 40px rgba(40, 45, 60, 0.2);
+  }
+  .select-kicker {
+    display: block;
+    font-family: "IBM Plex Mono", "Courier New", monospace;
+    font-size: 7px;
+    letter-spacing: 0.14em;
+    color: var(--accent, #c8102e);
+    text-transform: uppercase;
+  }
+  .select-name {
+    display: block;
+    margin-top: 4px;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.12;
+  }
+  .select-hint {
+    display: block;
+    margin-top: 3px;
+    font-size: 8.5px;
+    letter-spacing: 0.04em;
+    opacity: 0.62;
+  }
+  .select-ref {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 5px 7px;
+    border: 1px solid var(--accent, #c8102e);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    text-align: left;
+    cursor: pointer;
+  }
+  .select-ref:hover {
+    background: var(--accent, #c8102e);
+    color: #fff;
+  }
+  body.is-block-dragging .select-card {
+    opacity: 0;
+    pointer-events: none;
+  }
 </style>
 <script src="/vendor/html2canvas.min.js"></script>
 <script type="importmap">${IMPORT_MAP}</script>
 </head>
 <body>
   <div id="paper-root"></div>
+  <div id="selection-hud"></div>
   <script type="module" src="/src/sandbox/entry.js"></script>
 </body>
 </html>`
@@ -77,6 +145,7 @@ export function IframePaper({
   disclaimer,
   onBlockCommit,
   onEditText,
+  onReferenceBlock,
   controllerRef,
 }) {
   const iframeRef = useRef(null)
@@ -127,6 +196,10 @@ export function IframePaper({
         onEditText?.(data.key, data.text)
         return
       }
+      if (data.type === 'reference') {
+        onReferenceBlock?.(data.block)
+        return
+      }
       if (data.type === 'export-result' || data.type === 'export-error') {
         const pending = pendingRef.current.get(data.requestId)
         if (!pending) return
@@ -139,7 +212,7 @@ export function IframePaper({
 
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [onBlockCommit, onEditText, sendRender])
+  }, [onBlockCommit, onEditText, onReferenceBlock, sendRender])
 
   useEffect(() => {
     if (!controllerRef) return undefined

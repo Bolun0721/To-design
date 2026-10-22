@@ -54,10 +54,10 @@ ${DESIGN_SKILL}
 # 硬规则（前端会校验）
 
 1. schemes 必须恰好 3 个，id 依次为 "A" "B" "C"。
-2. **方案与版式、配色的对应关系固定**：
-   - A → layout_variant "classic_broadsheet" + color_preset "classic_serious"
-   - B → layout_variant "tabloid_bold" + color_preset "financial_daily"
-   - C → layout_variant "minimal_masthead" + color_preset "newsprint_single_accent"
+2. **A / B / C 的内容角度固定**：A 保守经典、B 现代商业、C 大胆传播。视觉风格由前端的风格包决定，可能把版式 / 配色 / 字体整体换成几何三式或系统三式；你仍按下述白名单输出字段，前端会覆盖视觉层，但内容角度不要变。
+   - A 默认建议 layout_variant "classic_broadsheet" + color_preset "classic_serious"
+   - B 默认建议 layout_variant "tabloid_bold" + color_preset "financial_daily"
+   - C 默认建议 layout_variant "minimal_masthead" + color_preset "newsprint_single_accent"
 3. 主标题 ≤ 15 个中文字符；副标题 ≤ 25 字；caption ≤ 30 字；pullquote ≤ 24 字；name ≤ 8 字；design_rationale ≤ 40 字；summary ≤ 60 字。
 4. 正文 body_blocks 为 2–4 段，合计 150–220 个中文字符；第三人称，一本正经地报道照片里的日常小事。
 5. 三套方案的 headline / subhead / body 内容必须实质不同。

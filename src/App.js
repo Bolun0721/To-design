@@ -18,6 +18,7 @@ import { chineseDate, clampText, shortDate } from './lib/format.js'
 import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto } from './lib/image.js'
 import { downloadDataUrl, printDataUrl } from './lib/exportPaper.js'
 import { FORMATS, resolveStyle } from './config/presets.js'
+import { applyStylePack, nextStylePack, STYLE_PACK_IDS } from './config/stylePacks.js'
 import {
   clearCurrentDraftId,
   deleteDraftRecord,
@@ -84,8 +85,11 @@ export function App() {
   const [exporting, setExporting] = useState(false)
   const [theme, setTheme] = useState(loadTheme)
   const [chats, setChats] = useState({})
+  const [stylePack, setStylePack] = useState('classic')
   const [chatBusy, setChatBusy] = useState(false)
   const [chatUndo, setChatUndo] = useState({})
+  const [chatReference, setChatReference] = useState(null)
+  const [chatRequest, setChatRequest] = useState(0)
   const [draftId, setDraftId] = useState(() => newDraftId())
   const [draftList, setDraftList] = useState([])
   const [draftCount, setDraftCount] = useState(0)
@@ -163,6 +167,16 @@ export function App() {
     toastTimer.current = setTimeout(() => setToast(null), 3200)
   }, [])
 
+  const referenceBlock = useCallback(
+    (block) => {
+      if (!block?.id) return
+      setChatReference({ ...block, nonce: Date.now() })
+      setChatRequest((value) => value + 1)
+      showToast(`已引用「${block.label || block.id}」到对话`)
+    },
+    [showToast],
+  )
+
   const applyResult = useCallback((result) => {
     if (chatAbortRef.current) {
       chatAbortRef.current.abort()
@@ -171,7 +185,9 @@ export function App() {
     setChats({})
     setChatUndo({})
     setChatBusy(false)
-    setSchemes(result.schemes)
+    setChatReference(null)
+    const packed = applyStylePack(result.schemes, stylePack)
+    setSchemes(packed)
     setSummary(result.summary)
     setWarnings(result.warnings || [])
     setRecommended(result.recommended || 'B')
@@ -179,10 +195,10 @@ export function App() {
       date: result.meta?.date || chineseDate(),
       disclaimer: result.meta?.disclaimer || '创意报纸版式，非真实新闻',
     })
-    const idx = result.schemes.findIndex((s) => s.id === (result.recommended || 'B'))
+    const idx = packed.findIndex((s) => s.id === (result.recommended || 'B'))
     setActive(idx >= 0 ? idx : 0)
     setView('gallery')
-  }, [])
+  }, [stylePack])
 
   const loadDemo = useCallback(
     ({ targetView = 'gallery', letter = null, fmt = format } = {}) => {
@@ -238,9 +254,11 @@ export function App() {
     setWarnings(Array.isArray(draft.warnings) ? draft.warnings : [])
     setRecommended(draft.recommended || 'B')
     setDemoMode(Boolean(draft.demoMode))
+    setStylePack(STYLE_PACK_IDS.includes(draft.stylePack) ? draft.stylePack : 'classic')
     setChats(draft.chats && typeof draft.chats === 'object' ? draft.chats : {})
     setChatUndo({})
     setChatBusy(false)
+    setChatReference(null)
     setView(nextSchemes.length ? (draft.view === 'editor' ? 'editor' : 'gallery') : 'intro')
     setError('')
     return true
@@ -344,6 +362,7 @@ export function App() {
           warnings,
           recommended,
           demoMode,
+          stylePack,
           chats,
           metaInfo,
         })
@@ -383,6 +402,7 @@ export function App() {
     chats,
     demoMode,
     view,
+    stylePack,
     refreshDrafts,
     showToast,
   ])
@@ -408,6 +428,7 @@ export function App() {
     setChats({})
     setChatUndo({})
     setChatBusy(false)
+    setChatReference(null)
     setDemoMode(false)
     setView('intro')
     setModal(null)
@@ -609,6 +630,7 @@ export function App() {
 
       const scheme = activeScheme
       const id = scheme.id
+      setChatReference(null)
       const history = (chats[id] || [])
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .slice(-4)
@@ -767,6 +789,21 @@ export function App() {
     else loadDemo({ targetView: 'gallery' })
   }, [generate, keyReady, loadDemo])
 
+  const cycleStylePack = useCallback(() => {
+    const current = schemesRef.current
+    if (!current.length) return
+    const next = nextStylePack(stylePack)
+    setStylePack(next.id)
+    setSchemes(applyStylePack(current, next.id))
+    setChats({})
+    setChatUndo({})
+    setChatBusy(false)
+    setChatReference(null)
+    setError('')
+    setSummary(`已换成「${next.name}」：${next.tagline}。内容保留，只换模板与配色。`)
+    showToast(`已换成 ${next.name}`)
+  }, [stylePack, showToast])
+
   const modelLabel = `${provider.name} · ${settings.model}`
 
   return html`
@@ -826,9 +863,12 @@ export function App() {
               photo=${photo}
               photo2=${photo2}
               busy=${busy}
+              stylePack=${stylePack}
+              onCycleStylePack=${cycleStylePack}
               onSelect=${(index) => {
                 setActive(index)
                 setView('editor')
+                setChatReference(null)
               }}
               onRegenerate=${regenerate}
             />
@@ -845,10 +885,14 @@ export function App() {
               theme=${theme}
               sandboxRef=${sandboxRef}
               disclaimer=${meta.disclaimer}
-              onSelect=${(index) => setActive(index)}
+              onSelect=${(index) => {
+                setActive(index)
+                setChatReference(null)
+              }}
               onBack=${() => setView('gallery')}
               onBlockCommit=${commitBlock}
               onEditText=${editText}
+              onReferenceBlock=${referenceBlock}
             />
           `}
         </main>
@@ -871,10 +915,16 @@ export function App() {
             chatBusy=${chatBusy}
             keyReady=${keyReady}
             canUndo=${(chatUndo[activeScheme.id] || []).length > 0}
+            chatRequest=${chatRequest}
+            reference=${chatReference}
+            onClearReference=${() => setChatReference(null)}
             onSendChat=${sendChat}
             onUndoChat=${undoChat}
             onChangeStyle=${updateStyle}
-            onChangeFormat=${setFormat}
+            onChangeFormat=${(next) => {
+              setFormat(next)
+              setChatReference(null)
+            }}
             onResetLayout=${resetLayout}
             onOpenJson=${() => setModal('json')}
             onExport=${doExport}

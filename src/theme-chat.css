@@ -138,6 +138,11 @@
   background: rgba(252, 249, 242, 0.88);
 }
 
+[data-theme="light"] .stage-zoom-control {
+  background: rgba(252, 249, 242, 0.92);
+  box-shadow: 0 6px 18px rgba(40, 45, 60, 0.08);
+}
+
 [data-theme="light"] .card-paper .paper-viewport {
   box-shadow: 0 14px 34px rgba(40, 45, 60, 0.16);
 }
@@ -455,6 +460,55 @@
   border: 1px solid var(--line);
   padding: 7px 9px;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.chat-reference {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft, rgba(200, 16, 46, 0.08));
+}
+
+.chat-ref-kicker {
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.chat-reference strong {
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.chat-ref-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 7.5px;
+  color: var(--muted-2);
+}
+
+.chat-ref-clear {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.chat-ref-clear:hover {
+  color: var(--ink);
 }
 
 .chat-compose {

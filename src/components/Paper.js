@@ -72,6 +72,8 @@ export function Paper({
     `--accent:${st.palette.accent}`,
     `--secondary:${st.palette.secondary}`,
     `--muted:${st.palette.muted}`,
+    `--tertiary:${st.palette.tertiary}`,
+    `--quaternary:${st.palette.quaternary}`,
     `--font-head:${st.font.headline}`,
     `--font-body:${st.font.body}`,
     `--headline-size:${headlineSize}px`,

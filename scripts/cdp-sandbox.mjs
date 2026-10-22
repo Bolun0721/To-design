@@ -93,6 +93,18 @@ await call('Browser.setDownloadBehavior', {
   downloadPath: DOWNLOAD,
 })
 
+await evaluate(`
+  localStorage.setItem('fpl.settings.v1', JSON.stringify({
+    provider: 'custom',
+    baseUrl: 'http://127.0.0.1:8787/v1',
+    model: 'mock-model',
+    mode: 'direct',
+    vision: false
+  }));
+  sessionStorage.setItem('fpl.apikey.v1', 'mock-key');
+  true;
+`)
+
 await call('Page.navigate', {
   url: 'http://127.0.0.1:5173/?demo=1&scheme=A&theme=dark',
 })
@@ -106,6 +118,41 @@ results.hasParentPaper = await evaluate(`Boolean(document.querySelector('.stage 
 results.iframePaper = await evaluate(
   `Boolean(document.querySelector('iframe.paper-frame')?.contentDocument?.querySelector('.paper'))`,
 )
+
+// 缩放条：100% 时应放大纸张并允许舞台滚动，再点「适应」恢复
+const zoomBefore = await evaluate(`(() => {
+  const wrap = document.querySelector('.paper-sandbox');
+  return {
+    label: document.querySelector('.zoom-label')?.innerText,
+    width: wrap?.offsetWidth,
+    scrollWidth: document.querySelector('.stage')?.scrollWidth,
+    clientWidth: document.querySelector('.stage')?.clientWidth,
+  };
+})()`)
+await evaluate(`(() => {
+  const range = document.querySelector('.zoom-range');
+  range.value = '100';
+  range.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+})()`)
+await sleep(800)
+const zoom100 = await evaluate(`(() => {
+  const wrap = document.querySelector('.paper-sandbox');
+  const stage = document.querySelector('.stage');
+  return {
+    label: document.querySelector('.zoom-label')?.innerText,
+    width: wrap?.offsetWidth,
+    scrollWidth: stage?.scrollWidth,
+    clientWidth: stage?.clientWidth,
+  };
+})()`)
+await evaluate(`document.querySelector('.zoom-fit').click(); true;`)
+await sleep(800)
+const zoomFit = await evaluate(`(() => {
+  const wrap = document.querySelector('.paper-sandbox');
+  return { label: document.querySelector('.zoom-label')?.innerText, width: wrap?.offsetWidth };
+})()`)
+results.zoom = { before: zoomBefore, at100: zoom100, fit: zoomFit }
 
 // 在 iframe 内拖动标题
 const dragResult = await evaluate(`(() => {
@@ -181,6 +228,83 @@ if (file) {
   results.exportBytes = buf.length
 }
 
+// 单击选中 → 双击选中卡片引用到对话
+await evaluate(`(() => {
+  const frame = document.querySelector('iframe.paper-frame');
+  const doc = frame.contentDocument;
+  const win = frame.contentWindow;
+  const block = doc.querySelector('[data-block-id="headline"]');
+  if (!block) return false;
+  const rect = block.getBoundingClientRect();
+  const base = {
+    bubbles: true,
+    cancelable: true,
+    pointerId: 2,
+    pointerType: 'mouse',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: rect.left + rect.width / 2,
+    clientY: rect.top + rect.height / 2,
+  };
+  block.dispatchEvent(new win.PointerEvent('pointerdown', base));
+  win.dispatchEvent(new win.PointerEvent('pointerup', { ...base, buttons: 0 }));
+  return true;
+})()`)
+await sleep(600)
+results.selection = await evaluate(`(() => {
+  const doc = document.querySelector('iframe.paper-frame').contentDocument;
+  const card = doc.querySelector('.select-card');
+  return {
+    selected: Boolean(doc.querySelector('.block.is-selected')),
+    card: Boolean(card),
+    label: doc.querySelector('.select-name')?.innerText,
+    hint: doc.querySelector('.select-hint')?.innerText,
+  };
+})()`)
+{
+  await fs.mkdir(fileURLToPath(new URL('../.shots/', import.meta.url)), { recursive: true })
+  const cardShot = await call('Page.captureScreenshot', { format: 'png' })
+  await fs.writeFile(
+    fileURLToPath(new URL('../.shots/selection-card.png', import.meta.url)),
+    Buffer.from(cardShot.result.data, 'base64'),
+  )
+}
+
+await evaluate(`(() => {
+  const frame = document.querySelector('iframe.paper-frame');
+  const win = frame.contentWindow;
+  const card = frame.contentDocument.querySelector('.select-card');
+  if (!card) return false;
+  card.dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  return true;
+})()`)
+await waitFor(
+  `document.querySelector('.insp-tab.active')?.innerText.includes('对话')`,
+  '引用切换到对话',
+)
+await sleep(500)
+results.reference = await evaluate(`({
+  tab: document.querySelector('.insp-tab.active')?.innerText,
+  chip: document.querySelector('.chat-reference')?.innerText,
+  placeholder: document.querySelector('.chat-input')?.placeholder,
+})`)
+
+// 引用后真的发一条对话，确认 prompt 带上了板块引用
+await evaluate(`(() => {
+  const el = document.querySelector('.chat-input');
+  el.value = '标题再大一点';
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+})()`)
+await sleep(200)
+await evaluate(`document.querySelector('.chat-send').click(); true;`)
+await waitFor(`document.querySelectorAll('.chat-msg.assistant').length >= 1`, '引用后的对话回复', 30000)
+await sleep(500)
+results.referenceSent = await evaluate(
+  `document.querySelector('.chat-msg.user .chat-text')?.innerText`,
+)
+
 const shot = await call('Page.captureScreenshot', { format: 'png' })
 await fs.mkdir(fileURLToPath(new URL('../.shots/', import.meta.url)), { recursive: true })
 await fs.writeFile(
@@ -193,10 +317,22 @@ console.log(JSON.stringify(results, null, 2))
 
 if (results.hasParentPaper) throw new Error('编辑器仍在父页面渲染 .paper')
 if (!results.iframePaper) throw new Error('iframe 内没有画布')
+if (!(results.zoom.at100.width > results.zoom.before.width * 1.5)) throw new Error('缩放条没有放大纸张')
+if (!results.zoom.at100.label.includes('100')) throw new Error('缩放条没有显示 100%')
+if (!(results.zoom.at100.scrollWidth > results.zoom.at100.clientWidth)) throw new Error('放大后舞台没有出现滚动')
+if (results.zoom.fit.label.includes('100')) throw new Error('「适应」没有恢复缩放')
 if (!results.dragStart?.ok) throw new Error('没有找到可拖动标题')
 if (!(results.drag.left > results.dragStart.startLeft)) throw new Error('iframe 内拖动没有生效')
 if (results.headline !== '沙箱里的头版') throw new Error('iframe 内双击改字没有同步到父页面状态')
 if (results.accent.before === results.accent.after) throw new Error('换色后 iframe 没有重新渲染')
+if (!results.selection.selected || !results.selection.card) throw new Error('点击板块没有出现选中卡片')
+if (results.selection.label !== '主标题') throw new Error('选中卡片没有显示板块名称')
+if (!results.reference.tab.includes('对话')) throw new Error('引用后没有切到对话 tab')
+if (!results.reference.chip.includes('主标题')) throw new Error('对话里没有引用 chip')
+if (!(results.reference.placeholder || '').includes('主标题')) throw new Error('引用后输入框没有板块提示')
+if (!results.referenceSent.includes('【引用板块：主标题（headline）】')) {
+  throw new Error('发送给对话的指令没有带上板块引用')
+}
 if (!results.exportFile) throw new Error('iframe 导出没有生成 PNG')
 if (results.exportSize !== '1588×2246') throw new Error(`导出尺寸异常：${results.exportSize}`)
 if (results.exportToast.includes('失败')) throw new Error('导出失败 toast')

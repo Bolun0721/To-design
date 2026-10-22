@@ -50,6 +50,7 @@ export function buildChatSystemPrompt() {
 5. 只输出一个 JSON 对象，不要 Markdown 围栏、注释或额外说明。
 6. 尽量只改 1–3 个字段。reply 用中文，≤40 字，说清楚改了什么。
 7. 保持编辑设计纪律：一个强调色、层级清楚、不堆装饰；不要引入渐变、圆角卡片、emoji。
+8. 如果用户消息包含「【引用板块：名称（block_id）】」，优先只改该板块对应的 content 或 layout_moves，不要动其他板块。
 
 # 输出结构
 

@@ -1,5 +1,5 @@
 import { h } from 'preact'
-import { useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import htm from 'htm'
 import { ChatPanel } from './ChatPanel.js'
 import {
@@ -43,12 +43,23 @@ export function Inspector({
   chatBusy = false,
   keyReady = false,
   canUndo = false,
+  chatRequest = 0,
+  reference = null,
+  onClearReference,
   onSendChat,
   onUndoChat,
 }) {
   const [tab, setTab] = useState('design')
   const secondaryFileRef = useRef(null)
+  const lastChatRequestRef = useRef(chatRequest)
   const st = resolveStyle(scheme)
+
+  useEffect(() => {
+    if (chatRequest > lastChatRequestRef.current) {
+      lastChatRequestRef.current = chatRequest
+      setTab('chat')
+    }
+  }, [chatRequest])
   const variant = VARIANTS[scheme.layout_variant]
   const ratio = contrastRatio(st.palette.accent, st.palette.background)
   const accents = [...new Set(COLOR_PRESET_IDS.map((id) => COLOR_PRESETS[id].accent))]
@@ -286,6 +297,8 @@ export function Inspector({
               busy=${chatBusy}
               keyReady=${keyReady}
               canUndo=${canUndo}
+              reference=${reference}
+              onClearReference=${onClearReference}
               onSend=${onSendChat}
               onUndo=${onUndoChat}
             />

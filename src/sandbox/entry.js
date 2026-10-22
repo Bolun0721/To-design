@@ -11,12 +11,177 @@ import { renderTreatedPhoto } from '../lib/image.js'
 
 const html = htm.bind(h)
 const root = document.getElementById('paper-root')
+const hud = document.getElementById('selection-hud')
 const paperRef = { current: null }
 let currentState = null
 let announced = false
+let selectedId = null
 
 function post(message) {
   window.parent.postMessage({ source: 'fpl-paper', ...message }, '*')
+}
+
+function blockInfo(block) {
+  return {
+    id: block.dataset.blockId,
+    label: block.dataset.label || block.dataset.blockId || '板块',
+    type: block.dataset.type || 'block',
+  }
+}
+
+function clearSelection() {
+  selectedId = null
+  const paper = paperRef.current || document.querySelector('.paper')
+  if (paper) {
+    paper.querySelectorAll('.block.is-selected').forEach((el) => el.classList.remove('is-selected'))
+  }
+  if (hud) hud.replaceChildren()
+}
+
+function referenceBlock(block) {
+  post({ type: 'reference', block: blockInfo(block) })
+}
+
+function applySelection() {
+  if (!hud) return
+  const paper = paperRef.current || document.querySelector('.paper')
+  if (!paper) return
+  paper.querySelectorAll('.block.is-selected').forEach((el) => el.classList.remove('is-selected'))
+  hud.replaceChildren()
+  if (!selectedId) return
+
+  let block = null
+  try {
+    block = paper.querySelector(`[data-block-id="${CSS.escape(selectedId)}"]`)
+  } catch {
+    block = paper.querySelector(`[data-block-id="${selectedId}"]`)
+  }
+  if (!block) {
+    selectedId = null
+    return
+  }
+  block.classList.add('is-selected')
+
+  const info = blockInfo(block)
+  const card = document.createElement('div')
+  card.className = 'select-card'
+  card.setAttribute('role', 'button')
+  card.setAttribute('title', '双击引用到对话')
+  card.tabIndex = 0
+
+  const kicker = document.createElement('span')
+  kicker.className = 'select-kicker'
+  kicker.textContent = `已选中 · ${info.type.toUpperCase()}`
+
+  const name = document.createElement('strong')
+  name.className = 'select-name'
+  name.textContent = info.label
+
+  const hint = document.createElement('span')
+  hint.className = 'select-hint'
+  hint.textContent = '双击卡片引用到对话'
+
+  const button = document.createElement('button')
+  button.className = 'select-ref'
+  button.type = 'button'
+  button.textContent = '引用到对话 →'
+
+  card.append(kicker, name, hint, button)
+  hud.appendChild(card)
+
+  card.addEventListener('dblclick', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    referenceBlock(block)
+  })
+  card.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      referenceBlock(block)
+    }
+  })
+  button.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    referenceBlock(block)
+  })
+
+  const rect = block.getBoundingClientRect()
+  const cardWidth = card.offsetWidth || 184
+  const cardHeight = card.offsetHeight || 84
+  let left = rect.left
+  let top = rect.top - cardHeight - 9
+  if (top < 6) top = rect.bottom + 9
+  if (top + cardHeight > window.innerHeight - 6) {
+    top = Math.max(6, window.innerHeight - cardHeight - 6)
+  }
+  left = Math.max(6, Math.min(left, window.innerWidth - cardWidth - 6))
+  card.style.left = `${left}px`
+  card.style.top = `${top}px`
+}
+
+function bindSelection() {
+  const paper = paperRef.current || document.querySelector('.paper')
+  if (!paper || paper.dataset.fplSelectBound === '1') return
+  paper.dataset.fplSelectBound = '1'
+
+  let down = null
+
+  paper.addEventListener(
+    'pointerdown',
+    (event) => {
+      const block = event.target.closest('[data-block-id]')
+      down = {
+        x: event.clientX,
+        y: event.clientY,
+        block: block || null,
+        moved: false,
+      }
+    },
+    true,
+  )
+
+  window.addEventListener(
+    'pointermove',
+    (event) => {
+      if (!down) return
+      if (Math.abs(event.clientX - down.x) > 4 || Math.abs(event.clientY - down.y) > 4) {
+        down.moved = true
+      }
+    },
+    true,
+  )
+
+  window.addEventListener(
+    'pointerup',
+    () => {
+      if (!down) return
+      const { block, moved } = down
+      down = null
+      if (moved) return
+      if (block) {
+        selectedId = block.dataset.blockId
+        applySelection()
+      } else {
+        clearSelection()
+      }
+    },
+    true,
+  )
+
+  paper.addEventListener(
+    'dblclick',
+    (event) => {
+      const block = event.target.closest('[data-block-id]')
+      if (!block || selectedId !== block.dataset.blockId) return
+      if (block.dataset.type === 'image' || event.altKey) {
+        event.preventDefault()
+        event.stopPropagation()
+        referenceBlock(block)
+      }
+    },
+    true,
+  )
 }
 
 function draw() {
@@ -44,6 +209,9 @@ function draw() {
     `,
     root,
   )
+
+  bindSelection()
+  applySelection()
 
   if (!announced) {
     announced = true
@@ -98,6 +266,7 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
 
   const zoom = paper.parentElement
   const previousTransform = zoom ? zoom.style.transform : ''
+  paper.classList.add('is-exporting')
   if (zoom) zoom.style.transform = 'none'
   void paper.offsetWidth
 
@@ -125,6 +294,7 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
       message: err.message || '导出失败',
     })
   } finally {
+    paper.classList.remove('is-exporting')
     if (zoom) zoom.style.transform = previousTransform
     images.forEach((img, index) => {
       if (previousSrc[index]) img.setAttribute('src', previousSrc[index])
