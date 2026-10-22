@@ -216,6 +216,30 @@ export async function requestSchemes({
   })
 }
 
+/** 多图补充图注：只返回 JSON captions */
+export async function requestCaptions({ apiKey, settings, system, user, imageDataUrls = [], signal }) {
+  const images = imageDataUrls.filter(Boolean)
+  const userContent =
+    settings.vision && images.length
+      ? [
+          { type: 'text', text: user },
+          ...images.map((url) => ({
+            type: 'image_url',
+            image_url: { url, detail: 'low' },
+          })),
+        ]
+      : user
+  return postChat({
+    apiKey,
+    settings,
+    system,
+    user: userContent,
+    signal,
+    temperature: 0.4,
+    maxTokens: 900,
+  })
+}
+
 /** 对话微调：一次只返回一个 JSON patch */
 export async function requestEdit({ apiKey, settings, system, user, signal }) {
   return postChat({

@@ -628,6 +628,47 @@
   flex: 0 0 auto;
 }
 
+.slot-add {
+  display: block;
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot-add:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.slot-caption {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft, rgba(200, 16, 46, 0.08));
+  color: var(--ink);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot-caption:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.slot-caption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .slot-btn {
   border: 1px solid var(--line);
   background: transparent;

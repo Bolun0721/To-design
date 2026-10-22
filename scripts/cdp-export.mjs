@@ -84,6 +84,16 @@ async function waitFile(timeout = 20000) {
   return []
 }
 
+async function waitNewFile(exclude = [], timeout = 20000) {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    const files = (await fs.readdir(DOWNLOAD)).filter((f) => f.endsWith('.png'))
+    if (files.some((f) => !exclude.includes(f))) return files
+    await sleep(400)
+  }
+  return []
+}
+
 await call('Runtime.enable')
 await call('Page.enable')
 await call('Browser.setDownloadBehavior', {
@@ -122,7 +132,7 @@ await evaluate(`(() => {
 await sleep(800)
 await evaluate(`document.querySelector('.action-btn.primary').click(); true;`)
 await sleep(300)
-const filesPoster = await waitFile()
+const filesPoster = await waitNewFile(filesPaper)
 await sleep(400)
 results.posterFiles = filesPoster
 results.posterToast = await evaluate(`document.querySelector('.toast')?.innerText || ''`)

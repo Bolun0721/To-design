@@ -2122,6 +2122,62 @@ body.is-block-dragging {
   opacity: 0.7;
 }
 
+/* 多图槽位形状 */
+.b-image .hero {
+  height: 100%;
+}
+
+.b-image .hero img {
+  height: 100%;
+  object-fit: cover;
+}
+
+.shape-circle .hero {
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.shape-circle .hero img {
+  border-radius: 50%;
+}
+
+.shape-tilt .hero {
+  transform: rotate(-3deg);
+  transform-origin: center;
+}
+
+.shape-tilt .hero img {
+  transform: scale(1.04);
+}
+
+.shape-panel .hero {
+  border: 2px solid var(--secondary);
+  padding: 5px;
+  background: var(--paper-bg);
+}
+
+.b-image.shape-panel,
+.b-image.shape-screen {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.shape-screen .hero {
+  border: 1px solid var(--secondary);
+  padding: 4px;
+  background: #0a0b08;
+  box-shadow: 0 0 16px rgba(116, 255, 154, 0.16);
+}
+
+.shape-wide .hero img {
+  object-fit: cover;
+}
+
+.shape-rect .hero {
+  border: 0;
+}
+
 .hero-secondary .hero-empty {
   gap: 4px;
   padding: 0 9px;
@@ -2761,15 +2817,14 @@ body.is-block-dragging {
 }
 
 .variant-nasa_punk::after {
-  content: "FPL // 001 // THIS SIDE UP";
+  content: "";
   position: absolute;
   right: 5%;
-  bottom: 3.6%;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 6px;
-  letter-spacing: 0.16em;
-  color: var(--secondary);
-  opacity: 0.7;
+  top: 3%;
+  width: 28px;
+  height: 6px;
+  border-top: 2px solid var(--secondary);
+  border-bottom: 2px solid var(--accent);
   pointer-events: none;
   z-index: 1;
 }
@@ -3081,6 +3136,133 @@ body.is-block-dragging {
 .variant-cassette_futurism .b-footer {
   border-top: 1px solid var(--secondary);
   padding-top: 8px;
+}
+
+/* ---------- 海报装饰注记 ---------- */
+
+.poster-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-height: 3.4em;
+  overflow: hidden;
+  padding-top: 6px;
+  border-top: 1px solid var(--muted);
+  font-family: var(--font-body);
+  font-size: 9px;
+  line-height: 1.45;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.poster-note-mark {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.variant-classic_broadsheet .poster-note {
+  font-family: var(--font-head);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  border-top-color: var(--accent);
+}
+
+.variant-tabloid_bold .poster-note {
+  color: var(--paper-bg);
+  border-top-color: rgba(255, 255, 255, 0.65);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.variant-minimal_masthead .poster-note {
+  justify-content: center;
+  border-top: 0;
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: 0.34em;
+}
+
+.variant-constructivism .poster-note {
+  color: var(--ink);
+  border-top: 4px solid var(--accent);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  transform: rotate(-2deg);
+  transform-origin: left center;
+}
+
+.variant-bauhaus .poster-note {
+  color: var(--ink);
+  border-top: 0;
+  background: var(--tertiary);
+  padding: 5px 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.variant-nasa_punk .poster-note {
+  color: var(--secondary);
+  border-top: 2px solid var(--secondary);
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 8px;
+}
+
+.variant-nasa_punk .poster-note-mark {
+  color: var(--accent);
+}
+
+.variant-de_stijl .poster-note {
+  color: var(--paper-bg);
+  background: var(--ink);
+  border-top: 0;
+  padding: 6px 8px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.variant-de_stijl .poster-note-mark {
+  color: var(--tertiary);
+}
+
+.variant-swiss_style .poster-note {
+  color: var(--ink);
+  border-top: 2px solid var(--ink);
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+.variant-cassette_futurism .poster-note {
+  color: var(--secondary);
+  border-top: 1px solid var(--secondary);
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  background: rgba(116, 255, 154, 0.04);
+  padding: 5px 7px;
+}
+
+.variant-cassette_futurism .poster-note-mark {
+  color: var(--accent);
+}
+
+.format-poster.variant-classic_broadsheet::before {
+  content: "01";
+  position: absolute;
+  right: 8%;
+  bottom: 4%;
+  font-family: var(--font-head);
+  font-size: 96px;
+  line-height: 0.8;
+  font-weight: 700;
+  color: var(--ink);
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ---------- 海报格式 ---------- */

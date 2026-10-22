@@ -19,9 +19,25 @@ for (const scheme of ok.schemes) {
   assert.ok(scheme.style.accent_color.startsWith('#'))
   assert.ok(scheme.content.headline.length <= 15)
 }
-assert.equal(ok.schemes[0].layouts.newspaper.some((b) => b.slot === 'secondary'), true)
+assert.equal(ok.schemes[0].layouts.newspaper.some((b) => b.slot === 'secondary'), false)
 assert.ok(ok.schemes[0].content.caption_secondary.includes('午后'))
+assert.ok(ok.schemes[0].content.poster_note.includes('巷口'))
 assert.equal(ok.recommended, 'B')
+
+const multiClassic = applyStylePack(ok.schemes, 'classic', true)
+assert.equal(
+  multiClassic[0].layouts.newspaper.some((b) => b.id === 'secondary'),
+  true,
+)
+assert.equal(
+  multiClassic[0].layouts.poster.some((b) => b.id === 'secondary'),
+  true,
+)
+const singleClassic = applyStylePack(ok.schemes, 'classic', false)
+assert.equal(
+  singleClassic[0].layouts.newspaper.some((b) => b.slot === 'secondary'),
+  false,
+)
 
 const prompt = buildUserPrompt({
   description: '两杯咖啡',

@@ -39,6 +39,8 @@ export function Inspector({
   photo2 = null,
   onPhotoFile,
   onRemovePhoto2,
+  captionBusy = false,
+  onEnrichCaptions,
   messages = [],
   chatBusy = false,
   keyReady = false,
@@ -156,7 +158,7 @@ export function Inspector({
       </section>
 
       <section class="insp-section">
-        <div class="insp-title"><span>图片槽位</span><em>Images</em></div>
+        <div class="insp-title"><span>图片槽位</span><em>Images · ${photo2 ? '2' : '1'} 图</em></div>
         <div class="slot-row">
           <div class="slot-thumb">
             ${photo ? html`<img src=${photo.dataUrl} alt="主图" />` : html`<span>主</span>`}
@@ -166,26 +168,39 @@ export function Inspector({
             <span>${photo ? photo.name : '未上传 · 在左侧上传'}</span>
           </div>
         </div>
-        <div class="slot-row">
-          <div class="slot-thumb">
-            ${photo2 ? html`<img src=${photo2.dataUrl} alt="次图" />` : html`<span>＋</span>`}
-          </div>
-          <div class="slot-meta">
-            <strong>次图</strong>
-            <span>${photo2 ? photo2.name : '未上传 · 可使用占位'}</span>
-          </div>
-          <div class="slot-actions">
-            <button
-              class="slot-btn"
-              type="button"
-              onClick=${() => secondaryFileRef.current?.click()}
-            >
-              ${photo2 ? '更换' : '上传'}
-            </button>
-            ${photo2 &&
-            html`<button class="slot-btn" type="button" onClick=${onRemovePhoto2}>移除</button>`}
-          </div>
-        </div>
+        ${photo2
+          ? html`
+              <div class="slot-row">
+                <div class="slot-thumb">
+                  <img src=${photo2.dataUrl} alt="子图" />
+                </div>
+                <div class="slot-meta">
+                  <strong>子图</strong>
+                  <span>${photo2.name}</span>
+                </div>
+                <div class="slot-actions">
+                  <button
+                    class="slot-btn"
+                    type="button"
+                    onClick=${() => secondaryFileRef.current?.click()}
+                  >
+                    更换
+                  </button>
+                  <button class="slot-btn danger" type="button" onClick=${onRemovePhoto2}>
+                    移除
+                  </button>
+                </div>
+              </div>
+            `
+          : html`
+              <button
+                class="slot-add"
+                type="button"
+                onClick=${() => secondaryFileRef.current?.click()}
+              >
+                ＋ 添加子图
+              </button>
+            `}
         <input
           ref=${secondaryFileRef}
           type="file"
@@ -197,7 +212,21 @@ export function Inspector({
             event.currentTarget.value = ''
           }}
         />
-        <p class="insp-note">次图只在经典大报的报纸版显示；海报与其他版式保留单图。</p>
+        <p class="insp-note">
+          多图会把主图位拆成主图 + 子图并自动重排；移除子图会回收版面，不留占位块。
+        </p>
+        ${photo2 &&
+        html`
+          <button
+            class="slot-caption"
+            type="button"
+            onClick=${onEnrichCaptions}
+            disabled=${captionBusy || !keyReady}
+            title=${keyReady ? '让模型为主图和子图各写一条图注' : '需要先填写 API Key'}
+          >
+            ${captionBusy ? '正在生成补充文案…' : '生成补充文案并重排'}
+          </button>
+        `}
       </section>
 
       <section class="insp-section">

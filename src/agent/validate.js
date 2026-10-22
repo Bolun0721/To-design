@@ -147,6 +147,7 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
 
     let caption = clampText(cleanText(content.caption), 30)
     let captionSecondary = clampText(cleanText(content.caption_secondary), 30)
+    let posterNote = clampText(cleanText(content.poster_note), 30)
     let pullquote = clampText(cleanText(content.pullquote), 24)
 
     let bodyBlocks = paragraphsOf(content)
@@ -207,6 +208,7 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
         body_blocks: bodyBlocks,
         caption,
         caption_secondary: captionSecondary,
+        poster_note: posterNote,
         pullquote,
         date: date || clampText(cleanText(content.date), 20) || chineseDate(),
         image_placeholders: placeholders,
@@ -237,12 +239,12 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
   }
 }
 
-export function rebuildLayout(scheme, format) {
+export function rebuildLayout(scheme, format, hasSub = false) {
   return {
     ...scheme,
     layouts: {
       ...scheme.layouts,
-      [format]: buildLayout(scheme.layout_variant, format),
+      [format]: buildLayout(scheme.layout_variant, format, hasSub),
     },
   }
 }

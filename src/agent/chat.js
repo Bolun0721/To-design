@@ -13,7 +13,14 @@ import { clampText, clamp, round, charLen } from '../lib/format.js'
 import { cleanText } from './validate.js'
 
 const TREATMENTS = ['original', 'halftone_mono', 'duotone']
-const TEXT_LIMITS = { headline: 15, subhead: 25, caption: 30, caption_secondary: 30, pullquote: 24 }
+const TEXT_LIMITS = {
+  headline: 15,
+  subhead: 25,
+  caption: 30,
+  caption_secondary: 30,
+  poster_note: 30,
+  pullquote: 24,
+}
 const MOVE_LIMITS = { dx: 12, dy: 12, dw: 15 }
 
 export const CHAT_SUGGESTIONS = [
@@ -37,7 +44,7 @@ export function buildChatSystemPrompt() {
 - style.columns：1 / 2 / 3
 - style.headline_scale：${Object.keys(HEADLINE_SCALES).join(' / ')}
 - style.image_treatment：${TREATMENTS.join(' / ')}
-- content.headline ≤15 字；content.subhead ≤25 字；content.caption ≤30 字；content.caption_secondary ≤30 字；content.pullquote ≤24 字
+- content.headline ≤15 字；content.subhead ≤25 字；content.caption ≤30 字；content.caption_secondary ≤30 字；content.poster_note ≤30 字；content.pullquote ≤24 字
 - content.body_blocks：2–4 段，合计 120–220 字；只有用户要求重写正文时才提供
 - layout_moves：对当前格式的版块做小幅微调，dx / dy 为百分比点（-${MOVE_LIMITS.dx}..${MOVE_LIMITS.dx}），dw 为宽度的百分比点（-${MOVE_LIMITS.dw}..${MOVE_LIMITS.dw}）
 
@@ -168,7 +175,14 @@ export function applyChatPatch(scheme, format, patch) {
 
   const content = patch.content && typeof patch.content === 'object' ? patch.content : {}
 
-  for (const key of ['headline', 'subhead', 'caption', 'caption_secondary', 'pullquote']) {
+  for (const key of [
+    'headline',
+    'subhead',
+    'caption',
+    'caption_secondary',
+    'poster_note',
+    'pullquote',
+  ]) {
     if (typeof content[key] !== 'string') continue
     const text = cleanText(content[key])
     if (key === 'headline' || key === 'subhead') {

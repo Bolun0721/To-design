@@ -10,14 +10,21 @@ import { Inspector } from './components/Inspector.js'
 import { JsonModal, PromptModal, SkillModal } from './components/Modals.js'
 import { DraftsModal } from './components/DraftsModal.js'
 import { buildDemoPayload } from './agent/demoData.js'
+import { buildCaptionSystemPrompt, buildCaptionUserPrompt } from './agent/captions.js'
 import { buildSystemPrompt, buildUserPrompt } from './agent/systemPrompt.js'
 import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './agent/chat.js'
-import { normalizeSchemes, rebuildLayout } from './agent/validate.js'
-import { PROVIDERS, defaultSettings, requestEdit, requestSchemes } from './agent/llm.js'
+import { cleanText, normalizeSchemes, rebuildLayout } from './agent/validate.js'
+import {
+  PROVIDERS,
+  defaultSettings,
+  requestCaptions,
+  requestEdit,
+  requestSchemes,
+} from './agent/llm.js'
 import { chineseDate, clampText, shortDate } from './lib/format.js'
 import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto } from './lib/image.js'
 import { downloadDataUrl, printDataUrl } from './lib/exportPaper.js'
-import { FORMATS, resolveStyle } from './config/presets.js'
+import { FORMATS, buildLayout, resolveStyle } from './config/presets.js'
 import { applyStylePack, nextStylePack, STYLE_PACK_IDS } from './config/stylePacks.js'
 import {
   clearCurrentDraftId,
@@ -90,6 +97,7 @@ export function App() {
   const [chatUndo, setChatUndo] = useState({})
   const [chatReference, setChatReference] = useState(null)
   const [chatRequest, setChatRequest] = useState(0)
+  const [captionBusy, setCaptionBusy] = useState(false)
   const [draftId, setDraftId] = useState(() => newDraftId())
   const [draftList, setDraftList] = useState([])
   const [draftCount, setDraftCount] = useState(0)
@@ -99,6 +107,7 @@ export function App() {
   const sandboxRef = useRef(null)
   const abortRef = useRef(null)
   const chatAbortRef = useRef(null)
+  const captionAbortRef = useRef(null)
   const toastTimer = useRef(null)
   const schemesRef = useRef(schemes)
   schemesRef.current = schemes
@@ -157,6 +166,7 @@ export function App() {
     return () => {
       if (abortRef.current) abortRef.current.abort()
       if (chatAbortRef.current) chatAbortRef.current.abort()
+      if (captionAbortRef.current) captionAbortRef.current.abort()
       if (toastTimer.current) clearTimeout(toastTimer.current)
     }
   }, [])
@@ -177,28 +187,37 @@ export function App() {
     [showToast],
   )
 
-  const applyResult = useCallback((result) => {
-    if (chatAbortRef.current) {
-      chatAbortRef.current.abort()
-      chatAbortRef.current = null
-    }
-    setChats({})
-    setChatUndo({})
-    setChatBusy(false)
-    setChatReference(null)
-    const packed = applyStylePack(result.schemes, stylePack)
-    setSchemes(packed)
-    setSummary(result.summary)
-    setWarnings(result.warnings || [])
-    setRecommended(result.recommended || 'B')
-    setMeta({
-      date: result.meta?.date || chineseDate(),
-      disclaimer: result.meta?.disclaimer || '创意报纸版式，非真实新闻',
-    })
-    const idx = packed.findIndex((s) => s.id === (result.recommended || 'B'))
-    setActive(idx >= 0 ? idx : 0)
-    setView('gallery')
-  }, [stylePack])
+  const applyResult = useCallback(
+    (result, hasSubOverride = null) => {
+      if (chatAbortRef.current) {
+        chatAbortRef.current.abort()
+        chatAbortRef.current = null
+      }
+      if (captionAbortRef.current) {
+        captionAbortRef.current.abort()
+        captionAbortRef.current = null
+        setCaptionBusy(false)
+      }
+      setChats({})
+      setChatUndo({})
+      setChatBusy(false)
+      setChatReference(null)
+      const hasSub = hasSubOverride ?? Boolean(photo2)
+      const packed = applyStylePack(result.schemes, stylePack, hasSub)
+      setSchemes(packed)
+      setSummary(result.summary)
+      setWarnings(result.warnings || [])
+      setRecommended(result.recommended || 'B')
+      setMeta({
+        date: result.meta?.date || chineseDate(),
+        disclaimer: result.meta?.disclaimer || '创意报纸版式，非真实新闻',
+      })
+      const idx = packed.findIndex((s) => s.id === (result.recommended || 'B'))
+      setActive(idx >= 0 ? idx : 0)
+      setView('gallery')
+    },
+    [photo2, stylePack],
+  )
 
   const loadDemo = useCallback(
     ({ targetView = 'gallery', letter = null, fmt = format } = {}) => {
@@ -208,7 +227,7 @@ export function App() {
           date,
           format: fmt,
         })
-        applyResult(normalized)
+        applyResult(normalized, photo ? Boolean(photo2) : true)
         setDemoMode(true)
         if (!photo) {
           setPhoto(DEMO_PHOTO)
@@ -228,7 +247,7 @@ export function App() {
         setError(`示例稿件载入失败：${err.message}`)
       }
     },
-    [applyResult, format, photo],
+    [applyResult, format, photo, photo2],
   )
 
   const applyDraft = useCallback((draft) => {
@@ -548,13 +567,37 @@ export function App() {
     }
   }, [apiKey, applyResult, busy, description, format, photo, settings, showToast])
 
+  const relayoutAll = useCallback((hasSub) => {
+    setSchemes((prev) =>
+      prev.map((scheme) => ({
+        ...scheme,
+        layouts: {
+          newspaper: buildLayout(scheme.layout_variant, 'newspaper', hasSub),
+          poster: buildLayout(scheme.layout_variant, 'poster', hasSub),
+        },
+      })),
+    )
+  }, [])
+
   const handlePhotoFile = useCallback(
     async (file, slot = 'hero') => {
       try {
         const next = await readPhoto(file)
         if (slot === 'secondary') {
+          if (captionAbortRef.current) {
+            captionAbortRef.current.abort()
+            captionAbortRef.current = null
+            setCaptionBusy(false)
+          }
           setPhoto2(next)
-          showToast('次图已载入')
+          setSchemes((prev) =>
+            prev.map((scheme) => ({
+              ...scheme,
+              content: { ...scheme.content, caption_secondary: '' },
+            })),
+          )
+          relayoutAll(true)
+          showToast('子图已载入，版式已重排')
         } else {
           setPhoto(next)
           showToast('照片已载入')
@@ -564,8 +607,117 @@ export function App() {
         setError(err.message)
       }
     },
-    [showToast],
+    [relayoutAll, showToast],
   )
+
+  const removeSecondary = useCallback(() => {
+    if (captionAbortRef.current) {
+      captionAbortRef.current.abort()
+      captionAbortRef.current = null
+      setCaptionBusy(false)
+    }
+    setPhoto2(null)
+    setSchemes((prev) =>
+      prev.map((scheme) => ({
+        ...scheme,
+        content: { ...scheme.content, caption_secondary: '' },
+        layouts: {
+          newspaper: buildLayout(scheme.layout_variant, 'newspaper', false),
+          poster: buildLayout(scheme.layout_variant, 'poster', false),
+        },
+      })),
+    )
+    showToast('子图已移除，版式已回收')
+  }, [showToast])
+
+  const enrichCaptions = useCallback(async () => {
+    if (!activeScheme || !photo2 || captionBusy) return
+    if (!apiKey.trim()) {
+      showToast('先在左侧填写模型 API Key，再生成补充文案', 'error')
+      return
+    }
+
+    const photos = [
+      photo && {
+        slot: 'main',
+        name: photo.name,
+        width: photo.width,
+        height: photo.height,
+        caption: activeScheme.content.caption,
+        dataUrl: photo.dataUrl,
+      },
+      {
+        slot: 'secondary',
+        name: photo2.name,
+        width: photo2.width,
+        height: photo2.height,
+        caption: activeScheme.content.caption_secondary,
+        dataUrl: photo2.dataUrl,
+      },
+    ].filter(Boolean)
+
+    setCaptionBusy(true)
+    setError('')
+    const controller = new AbortController()
+    captionAbortRef.current = controller
+    const timer = setTimeout(() => controller.abort(), 60_000)
+
+    try {
+      const result = await requestCaptions({
+        apiKey,
+        settings,
+        system: buildCaptionSystemPrompt(),
+        user: buildCaptionUserPrompt({
+          scheme: activeScheme,
+          formatLabel: FORMATS[format].label,
+          photos,
+        }),
+        imageDataUrls: settings.vision ? photos.map((p) => p.dataUrl) : [],
+        signal: controller.signal,
+      })
+      const captions = Array.isArray(result.json?.captions) ? result.json.captions : []
+      const bySlot = Object.fromEntries(
+        captions.map((item) => [
+          String(item?.slot || '').toLowerCase(),
+          clampText(cleanText(item?.text), 30),
+        ]),
+      )
+      const nextMain = bySlot.main || activeScheme.content.caption
+      const nextSub = bySlot.secondary || activeScheme.content.caption_secondary
+      if (!bySlot.main && !bySlot.secondary) {
+        throw new Error('模型没有返回图注，请重试')
+      }
+
+      setSchemes((prev) =>
+        prev.map((scheme) =>
+          scheme.id === activeScheme.id
+            ? {
+                ...scheme,
+                content: {
+                  ...scheme.content,
+                  caption: nextMain || scheme.content.caption,
+                  caption_secondary: nextSub || scheme.content.caption_secondary,
+                },
+                layouts: {
+                  newspaper: buildLayout(scheme.layout_variant, 'newspaper', true),
+                  poster: buildLayout(scheme.layout_variant, 'poster', true),
+                },
+              }
+            : scheme,
+        ),
+      )
+      showToast('补充图注已生成，版式已重排')
+    } catch (err) {
+      const message =
+        err.name === 'AbortError' ? '补充文案超时（60 秒），请重试' : err.message || '生成失败'
+      setError(`补充文案失败：${message}`)
+      showToast(message, 'error')
+    } finally {
+      clearTimeout(timer)
+      captionAbortRef.current = null
+      setCaptionBusy(false)
+    }
+  }, [activeScheme, apiKey, captionBusy, format, photo, photo2, settings, showToast])
 
   const updateStyle = useCallback(
     (patch, target = 'style') => {
@@ -605,6 +757,7 @@ export function App() {
           else if (key === 'subhead') content.subhead = clampText(value, 80)
           else if (key === 'caption') content.caption = clampText(value, 80)
           else if (key === 'caption_secondary') content.caption_secondary = clampText(value, 80)
+          else if (key === 'poster_note') content.poster_note = clampText(value, 80)
           else if (key === 'pullquote') content.pullquote = clampText(value, 60)
           else if (key.startsWith('paragraph:')) {
             const i = Number(key.split(':')[1])
@@ -732,10 +885,12 @@ export function App() {
 
   const resetLayout = useCallback(() => {
     setSchemes((prev) =>
-      prev.map((scheme, index) => (index === active ? rebuildLayout(scheme, format) : scheme)),
+      prev.map((scheme, index) =>
+        index === active ? rebuildLayout(scheme, format, Boolean(photo2)) : scheme,
+      ),
     )
     showToast('版式已重置')
-  }, [active, format, showToast])
+  }, [active, format, photo2, showToast])
 
   const doExport = useCallback(async () => {
     if (!activeScheme || exporting) return
@@ -794,7 +949,7 @@ export function App() {
     if (!current.length) return
     const next = nextStylePack(stylePack)
     setStylePack(next.id)
-    setSchemes(applyStylePack(current, next.id))
+    setSchemes(applyStylePack(current, next.id, Boolean(photo2)))
     setChats({})
     setChatUndo({})
     setChatBusy(false)
@@ -802,7 +957,7 @@ export function App() {
     setError('')
     setSummary(`已换成「${next.name}」：${next.tagline}。内容保留，只换模板与配色。`)
     showToast(`已换成 ${next.name}`)
-  }, [stylePack, showToast])
+  }, [photo2, stylePack, showToast])
 
   const modelLabel = `${provider.name} · ${settings.model}`
 
@@ -910,10 +1065,12 @@ export function App() {
             photo=${photo}
             photo2=${photo2}
             onPhotoFile=${handlePhotoFile}
-            onRemovePhoto2=${() => setPhoto2(null)}
+            onRemovePhoto2=${removeSecondary}
             messages=${chats[activeScheme.id] || []}
             chatBusy=${chatBusy}
             keyReady=${keyReady}
+            captionBusy=${captionBusy}
+            onEnrichCaptions=${enrichCaptions}
             canUndo=${(chatUndo[activeScheme.id] || []).length > 0}
             chatRequest=${chatRequest}
             reference=${chatReference}

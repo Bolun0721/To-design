@@ -134,7 +134,13 @@ async function exportScheme(index, format, pack, styleName) {
   const file = await waitForPng()
   const toast = await evaluate(`document.querySelector('.toast')?.innerText || ''`)
   const error = await evaluate(`document.querySelector('.error-box')?.innerText || ''`)
-  const record = { pack, style: styleName, format, file: Boolean(file), toast, error }
+  const hasSub = await evaluate(
+    `Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero img'))`,
+  )
+  const note = await evaluate(
+    `document.querySelector('iframe.paper-frame').contentDocument.querySelector('.poster-note')?.innerText || ''`,
+  )
+  const record = { pack, style: styleName, format, file: Boolean(file), toast, error, hasSub, note }
   if (file) {
     const buf = await fs.readFile(file)
     record.size = `${buf.readUInt32BE(16)}×${buf.readUInt32BE(20)}`
@@ -154,6 +160,10 @@ async function exportScheme(index, format, pack, styleName) {
 for (const format of ['newspaper', 'poster']) {
   await setFormat(format)
   await cycleTo('经典三式')
+  const classicNames = ['经典大报', '小报冲击', '极简报头']
+  for (let i = 0; i < 3; i += 1) {
+    await exportScheme(i, format, 'classic', classicNames[i])
+  }
   await cycleTo('几何三式')
   const geometryNames = ['构成主义', '包豪斯', '风格派']
   for (let i = 0; i < 3; i += 1) {
@@ -169,11 +179,18 @@ for (const format of ['newspaper', 'poster']) {
 const expected = (format) => (format === 'newspaper' ? '1588×2246' : '1600×2000')
 let failed = 0
 for (const item of results) {
-  if (!item.file || item.error || item.toast.includes('失败') || item.size !== expected(item.format)) {
+  if (
+    !item.file ||
+    item.error ||
+    item.toast.includes('失败') ||
+    item.size !== expected(item.format) ||
+    !item.hasSub ||
+    (item.format === 'poster' && !item.note.trim())
+  ) {
     failed += 1
     console.error('FAIL', item)
   } else {
-    console.log(`✓ ${item.format.padEnd(9)} ${item.pack.padEnd(8)} ${item.style.padEnd(8)} ${item.size} ${item.bytes}b`)
+    console.log(`✓ ${item.format.padEnd(9)} ${item.pack.padEnd(8)} ${item.style.padEnd(8)} ${item.size} ${item.bytes}b 双图`)
   }
 }
 console.log(`${results.length - failed}/${results.length} 通过 · ${exceptions.length} 异常`)

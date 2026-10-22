@@ -213,10 +213,8 @@ const newspaperClassic = [
   { id: 'headline', type: 'headline', x: 5, y: 14.4, w: 90 },
   { id: 'subhead', type: 'subhead', x: 5, y: 27.6, w: 90 },
   { id: 'byline', type: 'byline', x: 5, y: 33.2, w: 90 },
-  { id: 'hero', type: 'image', x: 5, y: 36.3, w: 63, h: 23.2 },
-  { id: 'caption', type: 'caption', x: 5, y: 60.1, w: 63 },
-  { id: 'secondary', type: 'image', x: 70, y: 36.3, w: 25, h: 23.2, slot: 'secondary' },
-  { id: 'secondaryCaption', type: 'caption', x: 70, y: 60.1, w: 25, slot: 'secondary' },
+  { id: 'hero', type: 'image', x: 5, y: 36.3, w: 90, h: 23.2 },
+  { id: 'caption', type: 'caption', x: 5, y: 60.1, w: 90 },
   { id: 'body', type: 'body', x: 5, y: 63.9, w: 90, h: 20.2 },
   { id: 'pullquote', type: 'pullquote', x: 5, y: 86.3, w: 90 },
   { id: 'footer', type: 'footer', x: 5, y: 95.7, w: 90 },
@@ -253,6 +251,7 @@ const posterClassic = [
   { id: 'subhead', type: 'subhead', x: 8, y: 28.0, w: 78 },
   { id: 'hero', type: 'image', x: 8, y: 35.0, w: 84, h: 39.6 },
   { id: 'caption', type: 'caption', x: 8, y: 75.8, w: 84 },
+  { id: 'posterNote', type: 'note', x: 8, y: 81.0, w: 54 },
   { id: 'footer', type: 'footer', x: 8, y: 87.5, w: 84 },
 ]
 
@@ -262,6 +261,7 @@ const posterTabloid = [
   { id: 'masthead', type: 'masthead', x: 7, y: 5.0, w: 86, tone: 'invert' },
   { id: 'headline', type: 'headline', x: 7, y: 10.5, w: 86, tone: 'invert' },
   { id: 'subhead', type: 'subhead', x: 7, y: 86.0, w: 80, tone: 'invert' },
+  { id: 'posterNote', type: 'note', x: 7, y: 80.0, w: 50, tone: 'invert' },
   { id: 'caption', type: 'caption', x: 7, y: 95.2, w: 86, tone: 'invert' },
 ]
 
@@ -271,6 +271,7 @@ const posterMinimal = [
   { id: 'headline', type: 'headline', x: 10, y: 63.0, w: 80, align: 'center' },
   { id: 'subhead', type: 'subhead', x: 15, y: 77.0, w: 70, align: 'center' },
   { id: 'caption', type: 'caption', x: 15, y: 85.4, w: 70, align: 'center' },
+  { id: 'posterNote', type: 'note', x: 8, y: 89.0, w: 84, align: 'center' },
   { id: 'footer', type: 'footer', x: 8, y: 93.0, w: 84, align: 'center' },
 ]
 
@@ -295,6 +296,7 @@ const posterConstructivism = [
   { id: 'subhead', type: 'subhead', x: 4, y: 44.0, w: 50 },
   { id: 'hero', type: 'image', x: 55, y: 28.0, w: 41, h: 50.0 },
   { id: 'caption', type: 'caption', x: 55, y: 80.0, w: 41 },
+  { id: 'posterNote', type: 'note', x: 4, y: 85.0, w: 46 },
   { id: 'footer', type: 'footer', x: 4, y: 92.8, w: 92 },
 ]
 
@@ -317,6 +319,7 @@ const posterBauhaus = [
   { id: 'hero', type: 'image', x: 58, y: 10.0, w: 37, h: 38.0 },
   { id: 'subhead', type: 'subhead', x: 5, y: 40.0, w: 50 },
   { id: 'caption', type: 'caption', x: 58, y: 50.0, w: 37 },
+  { id: 'posterNote', type: 'note', x: 5, y: 75.0, w: 40 },
   { id: 'footer', type: 'footer', x: 5, y: 92.8, w: 90 },
 ]
 
@@ -340,6 +343,7 @@ const posterNasa = [
   { id: 'subhead', type: 'subhead', x: 67, y: 12.0, w: 27 },
   { id: 'hero', type: 'image', x: 6, y: 37.0, w: 88, h: 41.0 },
   { id: 'caption', type: 'caption', x: 6, y: 79.0, w: 58 },
+  { id: 'posterNote', type: 'note', x: 6, y: 86.0, w: 46 },
   { id: 'footer', type: 'footer', x: 6, y: 92.8, w: 88 },
 ]
 
@@ -363,6 +367,7 @@ const posterDestijl = [
   { id: 'hero', type: 'image', x: 58, y: 9.0, w: 37, h: 35.0 },
   { id: 'subhead', type: 'subhead', x: 5, y: 42.0, w: 50 },
   { id: 'caption', type: 'caption', x: 58, y: 46.0, w: 37 },
+  { id: 'posterNote', type: 'note', x: 5, y: 76.0, w: 36 },
   { id: 'footer', type: 'footer', x: 5, y: 92.8, w: 90 },
 ]
 
@@ -385,6 +390,7 @@ const posterSwiss = [
   { id: 'hero', type: 'image', x: 66, y: 11.0, w: 27, h: 42.0 },
   { id: 'subhead', type: 'subhead', x: 7, y: 42.0, w: 52 },
   { id: 'caption', type: 'caption', x: 66, y: 55.0, w: 27 },
+  { id: 'posterNote', type: 'note', x: 7, y: 73.0, w: 42 },
   { id: 'footer', type: 'footer', x: 7, y: 92.8, w: 86 },
 ]
 
@@ -406,6 +412,7 @@ const posterCassette = [
   { id: 'hero', type: 'image', x: 6, y: 13.0, w: 88, h: 43.0 },
   { id: 'headline', type: 'headline', x: 6, y: 59.0, w: 88 },
   { id: 'subhead', type: 'subhead', x: 6, y: 79.0, w: 80 },
+  { id: 'posterNote', type: 'note', x: 6, y: 72.0, w: 50 },
   { id: 'caption', type: 'caption', x: 6, y: 91.0, w: 58 },
   { id: 'footer', type: 'footer', x: 6, y: 92.8, w: 88 },
 ]
@@ -523,6 +530,104 @@ export const VARIANTS = {
 
 export const VARIANT_IDS = Object.keys(VARIANTS)
 
+const MULTI_SPECS = {
+  classic_broadsheet: { main: 0.62, gap: 2, mainShape: 'portrait', subShape: 'square' },
+  tabloid_bold: { main: 0.6, gap: 2, mainShape: 'wide', subShape: 'square' },
+  minimal_masthead: { main: 0.6, gap: 3, mainShape: 'square', subShape: 'portrait' },
+  constructivism: { main: 0.58, gap: 2, mainShape: 'tilt', subShape: 'circle' },
+  bauhaus: { main: 0.55, gap: 2, mainShape: 'circle', subShape: 'square' },
+  nasa_punk: { main: 0.58, gap: 2, mainShape: 'panel', subShape: 'panel' },
+  de_stijl: { main: 0.56, gap: 2, mainShape: 'rect', subShape: 'rect' },
+  swiss_style: { main: 0.62, gap: 2, mainShape: 'square', subShape: 'square' },
+  cassette_futurism: { main: 0.58, gap: 2, mainShape: 'screen', subShape: 'screen' },
+}
+
+/**
+ * hasSub=true 时把主图所在区域拆成「主图 + 子图」，并生成对应图注。
+ * 子图只在存在时进入布局；没有子图时主图回到单图版式，不留占位块。
+ */
+export function buildLayout(variantId, format, hasSub = false) {
+  const variant = VARIANTS[variantId] || VARIANTS.classic_broadsheet
+  const base = (variant.layouts[format] || variant.layouts.newspaper).map((b) => ({ ...b }))
+  if (!hasSub) return base.filter((b) => !b.slot)
+
+  const hero = base.find((b) => b.type === 'image' && !b.slot)
+  const caption = base.find((b) => b.type === 'caption' && !b.slot)
+  if (!hero) return base
+
+  const spec = MULTI_SPECS[variantId] || MULTI_SPECS.classic_broadsheet
+  const images = []
+  const captions = []
+
+  if (hero.w < 42) {
+    // 窄图位：上下叠放，避免两张图都被压得过窄
+    const mainH = Math.round(hero.h * 0.58 * 10) / 10
+    const subH = Math.round((hero.h - mainH - 1) * 10) / 10
+    images.push({ ...hero, id: 'hero', h: mainH, shape: spec.mainShape })
+    images.push({
+      id: 'secondary',
+      type: 'image',
+      x: hero.x,
+      y: Math.round((hero.y + mainH + 1) * 10) / 10,
+      w: hero.w,
+      h: Math.max(subH, 6),
+      slot: 'secondary',
+      shape: spec.subShape,
+    })
+    if (caption) {
+      captions.push({ ...caption, id: 'caption', w: Math.round(hero.w * 4.8) / 10 })
+      captions.push({
+        id: 'secondaryCaption',
+        type: 'caption',
+        x: Math.round((hero.x + hero.w * 0.52) * 10) / 10,
+        y: caption.y,
+        w: Math.round(hero.w * 4.8) / 10,
+        slot: 'secondary',
+      })
+    }
+  } else {
+    const mainW = Math.round(hero.w * spec.main * 10) / 10
+    const subW = Math.round((hero.w - mainW - spec.gap) * 10) / 10
+    images.push({ ...hero, id: 'hero', w: mainW, shape: spec.mainShape })
+    images.push({
+      id: 'secondary',
+      type: 'image',
+      x: Math.round((hero.x + mainW + spec.gap) * 10) / 10,
+      y: hero.y,
+      w: subW,
+      h: hero.h,
+      slot: 'secondary',
+      shape: spec.subShape,
+    })
+    if (caption) {
+      captions.push({ ...caption, id: 'caption', w: mainW })
+      captions.push({
+        id: 'secondaryCaption',
+        type: 'caption',
+        x: Math.round((hero.x + mainW + spec.gap) * 10) / 10,
+        y: caption.y,
+        w: subW,
+        slot: 'secondary',
+      })
+    }
+  }
+
+  const result = []
+  for (const block of base) {
+    if (block.slot) continue
+    if (block.id === 'hero') {
+      result.push(...images)
+      continue
+    }
+    if (block.id === 'caption') {
+      result.push(...captions)
+      continue
+    }
+    result.push(block)
+  }
+  return result
+}
+
 export const HEADLINE_PX = {
   newspaper: {
     classic_broadsheet: 56,
@@ -552,11 +657,6 @@ export const HEADLINE_SCALES = {
   medium: { label: '中', factor: 0.86 },
   large: { label: '大', factor: 1 },
   xlarge: { label: '特大', factor: 1.14 },
-}
-
-export function buildLayout(variantId, format) {
-  const variant = VARIANTS[variantId] || VARIANTS.classic_broadsheet
-  return (variant.layouts[format] || variant.layouts.newspaper).map((b) => ({ ...b }))
 }
 
 export function headlinePx(variantId, format, scale) {

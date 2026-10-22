@@ -125,15 +125,25 @@ Base URL：https://api.deepseek.com/v1
 
 ![海报模式](docs/04-poster.png)
 
-### 多图：经典大报的双图位
+### 多图模式（所有模板）
 
-- **经典三式**的报纸版方案 A 使用 **主图 63% + 次图 25%** 的双图位，两张图各自有图注，都可拖动、缩放、单独导出；
-- 上传入口在右侧检查器「图片槽位」：主图沿用左侧上传，次图可在这里 **上传 / 更换 / 移除**；
-- 没有次图时渲染设计过的占位块，不会复用主图、不会编造 URL；
-- 海报与其它版式保持单图，避免两张图抢同一个视觉焦点；切回经典三式时次图仍会保留；
-- LLM 侧新增 `caption_secondary` 与 `image_placeholders[{ slot, aspect_ratio, purpose }]`，由前端校验后渲染。
+- **九套模板全部支持主图 + 子图**；`buildLayout(variant, format, hasSub)` 会把主图位拆成两张图，窄图位会自动改为上下叠放；
+- 不同模板使用不同的子图形状：经典大报竖构图、包豪斯圆形、构成主义斜切、NASA 面板、卡带显像管边框等；位置比例也按模板调整；
+- 右侧「图片槽位」可以 **添加子图 / 更换 / 移除**；移除后版式立即回到单图，**不留占位块**，主图自动吃满原区域；
+- 每张图有独立图注：主图 `caption`，子图 `caption_secondary`；
+- 点「生成补充文案并重排」会让模型读当前标题 / 正文和两张图，分别写主图 / 子图图注，然后按双图版式重排（视觉模型会直接读图；文本模型写中性描述）；
+- 只有一张照片时使用单图全宽版式；模型不再被要求生成子图占位对象。
 
-![多图导出](docs/08-export.png)
+![多图报纸](docs/15-multi-news.png)
+
+![多图海报](docs/16-multi-poster.png)
+
+### 海报留白与装饰
+
+- 海报不展示完整正文，容易留白；生成提示词允许模型写一条 `poster_note`（≤30 字：时间、地点、版次、氛围短句或英文小标签）；
+- 九个海报模板都预留了注记位，并按模板做字号、边框、底色、等宽字体等不同处理；
+- 模板本身也增加了静态装饰：经典大报的 ghost 期号、NASA 的彩条与技术角标、风格派的色块、包豪斯的几何形、瑞士的 01、卡带的扫描线与状态标签；
+- 只允许短装饰文案，不允许用长段落硬填，也不允许编造真实事件或机构。
 
 颜色、字体、版式全部来自 `src/config/presets.js`（移植自 `newspaper-design-presets.json`）。模型不输出任何 hex 色值，越界会被前端硬校验回退。
 
@@ -165,12 +175,11 @@ Base URL：https://api.deepseek.com/v1
         "subhead": "…",
         "body_blocks": [{ "type": "paragraph", "text": "…" }],
         "caption": "…",
-        "caption_secondary": "次图说明（仅经典大报，可选）",
+        "caption_secondary": "子图说明（多图时可选）",
+        "poster_note": "海报装饰短句（≤30字）",
         "pullquote": "…",
         "date": "2026年10月20日",
-        "image_placeholders": [
-          { "slot": "secondary", "aspect_ratio": "3:4", "purpose": "次图占位说明" }
-        ]
+        "image_placeholders": []
       },
       "design_rationale": "正式报道腔，适合打印留存与纪念"
     }
@@ -180,16 +189,28 @@ Base URL：https://api.deepseek.com/v1
 
 前端 `src/agent/validate.js` 做二次硬校验：3 套方案、版式 / 配色 / 字体白名单、三者互不重复、标题与正文字数、脚本 / HTML 清洗、颜色从 preset 派生、越界修复并在「生成摘要」中列出警告。
 
+## Prompt 版本备份
+
+提示词改动前先备份到 `prompts/versions/<版本号>/`，目录里保留：
+
+- `systemPrompt.js`：生成提示词 / Schema / 白名单；
+- `chat.js`：对话微调提示词；
+- `designSkill.js`：设计 Skill；
+- `captions.js`：多图补充图注提示词；
+- `manifest.json`：版本、日期、变更说明、对应 Git tag。
+
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+
 ## 交互与导出
 
 - **拖动版块**：按住任意版块拖动，带版心参考线和 5% / 中线吸附；显示实时坐标；
 - **画布缩放**：左下角 20–100% 滑条 + 「适应」按钮；手动放大超过适应比例后，舞台出现滚动条，纸张不会被裁切；
 - **缩放版块**：悬停右下角手柄拖动（图片块会同时改变高度）；
-- **双击改字**：标题 / 副标题 / 图注 / 引语 / 正文段落均可直接编辑，`Esc` 取消，`⌘/Ctrl+Enter` 提交；
+- **双击改字**：标题 / 副标题 / 图注 / 引语 / 正文段落 / 海报注记均可直接编辑，`Esc` 取消，`⌘/Ctrl+Enter` 提交；
 - **板块选中与引用**：单击任意板块出现选中框和加粗名称卡片；双击这张卡片（或按 Alt 双击图片 / 板块）把该板块引用到对话，右侧自动切到对话 tab，输入框上方出现引用 chip，发送时自动带上 `【引用板块：名称（block_id）】`；点画布空白处取消选中；
 - **iframe 画布**：编辑器 Paper 渲染在同源 `srcdoc` iframe 内；父页面发送方案 / 缩放 / 主题，iframe 内处理拖动、双击和导出，再通过 `postMessage` 回传。父页面样式不会穿透到纸张（同源 CSS/DOM 隔离，不是安全边界）；
 - **Tweak 控件**：主色（含对比度提示）、正文栏数 1/2/3、标题字号三档、图片处理（原图 / 黑白半调 / 双色调）、字体搭配；
-- **图片槽位**：主图 / 次图缩略图与上传状态；次图支持更换、移除，移除后自动变成占位块；
+- **图片槽位**：主图 / 子图缩略图；可添加、更换、移除子图；移除后自动使用单图版式，**不留占位块**；「生成补充文案并重排」会为主图和子图各写一条图注并重排；
 - **对话微调**：右侧 tab，一句话 → 最小 patch，可撤销（见下节）；
 - **明暗主题**：顶栏切换暗色原版 / 米白 + 电光蓝，`localStorage` 记忆；
 - **导出**：iframe 内 html2canvas 2× PNG，结果经 `postMessage` 回传父页面下载；打印把同一张高清图放进 `@page` A4 / 4:5 的打印窗口；
@@ -249,7 +270,7 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        ├─ components/Editor     画布 + 缩放条 + 方案 tab
        ├─ components/IframePaper iframe 沙箱宿主：状态发送 / 选中引用 / 事件接收 / 导出请求
        ├─ components/Paper      模板引擎：blocks → 报纸/海报 DOM（预览 + iframe 内）
-       ├─ components/Inspector  设计 tab / 对话 tab + 图片槽位 + 导出 + JSON
+       ├─ components/Inspector  设计 tab / 对话 tab + 图片槽位（增删子图 / 补充图注） + 导出 + JSON
        ├─ components/ChatPanel  对话消息 / 快捷指令 / 引用 chip / 撤销
        ├─ components/DraftsModal 草稿列表 / 打开 / 删除 / 新建
        └─ components/Modals     Skill / Prompt / JSON 查看
@@ -258,13 +279,15 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        ├─ systemPrompt.js       生成提示词 + Schema + 白名单
        ├─ designSkill.js        内置设计 Skill
        ├─ chat.js               对话微调提示词 + patch 校验 / 应用
+       ├─ captions.js           多图补充图注提示词
        ├─ llm.js                OpenAI 兼容请求、JSON 提取、错误翻译
        ├─ validate.js           硬校验 / 修复 / 布局注入
        └─ demoData.js           离线示例稿件
-  └─ config/presets.js          11 组配色、5 组字体、9 套版式 × 2 格式
+  └─ config/presets.js          11 组配色、5 组字体、9 套版式 × 2 格式 + 双图拆分布局
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
   └─ lib/                       image / exportPaper / drafts（IndexedDB 草稿）
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
+  └─ prompts/versions/          提示词版本快照（v0.5.0 / v0.6.0）
 server.mjs                      静态服务 + /api/llm 极薄中继（零依赖）
 ```
 
@@ -296,33 +319,34 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── main.js
 │   ├── styles.css             # 工作室外壳 + 报纸模板样式
 │   ├── theme-chat.css         # 明暗主题 + 对话面板
-│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch
+│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch / 图注
 │   ├── components/            # Paper / IframePaper / Inspector / ChatPanel / DraftsModal …
 │   ├── sandbox/entry.js       # iframe 内渲染 / 拖动 / 改字 / 选中卡片 / 导出
-│   ├── config/presets.js      # 11 组配色 / 5 组字体 / 9 套版式
+│   ├── config/presets.js      # 11 组配色 / 5 组字体 / 9 套版式 / 单图与双图布局
 │   ├── config/stylePacks.js   # 3 组风格包与包切换
 │   └── lib/                   # image / exportPaper / drafts（IndexedDB 草稿）
+├── prompts/versions/          # 提示词版本快照与 manifest
 ├── public/
 │   ├── demo/coffee.jpg        # 程序化生成的示例照片（主图）
-│   ├── demo/coffee-2.jpg      # 程序化生成的示例照片（次图）
+│   ├── demo/coffee-2.jpg      # 程序化生成的示例照片（子图）
 │   └── vendor/                # preact / htm / html2canvas（浏览器直接加载）
 ├── scripts/
 │   ├── launch-demo.bat        # Windows 一键启动（桌面 .bat 调用）
 │   ├── make_demo_photo.py     # 生成示例主图（Pillow）
-│   ├── make_demo_photo_2.py   # 生成示例次图（Pillow）
-│   ├── test-validate.mjs      # 校验层单测
+│   ├── make_demo_photo_2.py   # 生成示例子图（Pillow）
+│   ├── test-validate.mjs      # 校验层单测（含双图布局 / 风格包）
 │   ├── test-chat.mjs          # 对话 patch 单测
 │   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
-│   ├── export-matrix.mjs      # 3 方案 × 2 格式 × 2 主题 导出矩阵
-│   ├── mock-llm.mjs           # 本地 mock 模型（生成 + 对话 patch）
+│   ├── export-matrix.mjs      # 经典 3 方案 × 2 格式 × 2 主题 导出矩阵
+│   ├── mock-llm.mjs           # 本地 mock 模型（生成 + 对话 + 补充图注）
 │   ├── cdp-check.mjs          # iframe 隔离：父页面无 .paper / 样式不穿透
 │   ├── cdp-sandbox.mjs        # 缩放条 / 选中卡片 / 引用对话 / iframe 拖动 / 导出
-│   ├── cdp-styles.mjs         # 3 组风格包轮换 + 六种新风格截图
-│   ├── cdp-style-export.mjs   # 六种新风格 × 报纸/海报导出 12 例
+│   ├── cdp-styles.mjs         # 3 组风格包轮换 + 六种新风格双图截图
+│   ├── cdp-style-export.mjs   # 9 模板 × 报纸/海报导出 18 例（全部双图）
 │   ├── cdp-generate.mjs       # 真实点击生成的端到端测试
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
-│   ├── cdp-multi.mjs          # 双图 → 占位 → 重新上传 自检
+│   ├── cdp-multi.mjs          # 子图增删 / 无占位 / 补充图注 / 单图导出
 │   ├── cdp-drafts.mjs         # 自动保存 / 刷新恢复 / 对话历史 / 删除 自检
 │   └── cdp-modals.mjs         # 弹窗自检
 └── docs/                      # README 截图
@@ -367,14 +391,14 @@ node scripts/export-matrix.mjs
 - 画布缩放：52% → 100% → 52%，100% 时舞台 `scrollWidth > clientWidth`，纸张不被裁切；
 - 板块选中：单击出现选中框与「主标题」卡片；双击卡片切到对话 tab 并出现引用 chip；发送指令中带 `【引用板块：主标题（headline）】`；
 - iframe 交互：沙箱内拖动（left 5→10）、双击改字、换色回渲染；父页面触发导出得到 1588×2246 PNG，0 异常；
-- 风格包：经典三式 → 几何三式 → 系统三式 → 回到经典，三套内容摘要保持不变，0 异常；
-- 六种新风格 × 报纸/海报：**12/12 导出通过**，0 未捕获异常；页脚、斜线、彩条和网格都进入 PNG；
-- 多图自检：示例 2 图 → 移除次图变占位（仍可导出）→ 重新上传恢复 2 图，0 异常；
+- 风格包：经典三式 → 几何三式 → 系统三式 → 回到经典，三套内容摘要保持不变；六种新模板全部进入双图模式，0 异常；
+- 九套模板 × 报纸/海报（双图）：**18/18 导出通过**，0 未捕获异常；页脚、斜线、彩条、网格、海报注记都进入 PNG；
+- 多图自检：2 图 → 移除子图后回到单图且**无占位块** → 单图导出 → 重新上传 → **补充图注**（主图 / 子图各一条）并重排，0 异常；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 经典导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
-> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
+> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
 > `check-css.mjs` 会拦住 `color-mix()` / `color()` / `oklch()` 等 html2canvas 无法解析的写法——这正是上次导出失败的根因。
 
@@ -392,14 +416,16 @@ node scripts/export-matrix.mjs
 - **主题只作用于外壳**：纸张 / 海报的配色仍由 `color_preset` 决定，切主题不会改变导出图片的颜色；
 - **拖动是自由拖动**，不是网格约束的 DTP；复杂版面仍建议按预设生成后再微调；
 - **字体依赖本机**：中文用宋体 / 苹方 / 思源回退，英文用 Playfair / Source Sans / IBM Plex Mono；Google Fonts 为可选增强（非阻塞加载），离线时会回退；
-- **多图范围**：目前只有「经典三式」的经典大报报纸版使用双图位；其他风格和海报保持单图，避免视觉焦点分裂；
+- **多图范围**：九套模板都支持「主图 + 子图」（最多 2 张）；更多图需要在布局层继续扩展；
+- **子图删除即回收**：移除后回到单图全宽版式，不保留占位块；主图图注与子图图注分别保存；
+- **海报注记**：`poster_note` 是短装饰文案，不是正文；模型可能输出英文标签或氛围句，均可在画布上双击修改；
 - **风格包会重置微调**：在画廊换风格包会重排版式并恢复默认色 / 字体，之前手动拖过的位置不会保留；建议先选包再进画布；
 - **六种新风格是模板化演绎**：按提示词提炼几何、配色、字体和装饰，不是历史原作的精确复刻；
 - **iframe 是同源隔离**：用于 CSS / DOM / 选择隔离，不宣称是安全沙箱；跨域嵌入或多实例需要额外 `sandbox` 属性与消息白名单；
 - **草稿只在本机**：IndexedDB 按浏览器 / 设备隔离，没有账号同步；清理浏览器数据会删除草稿；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）、iframe 沙箱与九套模板 / 风格包已完成，见 `scripts/export-matrix.mjs`、`scripts/check-css.mjs`、`scripts/cdp-check.mjs`、`scripts/cdp-sandbox.mjs`、`scripts/cdp-styles.mjs`、`scripts/cdp-style-export.mjs`、`scripts/cdp-drafts.mjs`。
+下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）、iframe 沙箱、九套模板 / 风格包，以及本轮的双图增删 / 补充图注 / 海报注记已完成；提示词快照在 `prompts/versions/`。
 
 ---
 

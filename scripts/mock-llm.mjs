@@ -44,7 +44,15 @@ const server = http.createServer((req, res) => {
     const userText = Array.isArray(user) ? user.map((part) => part.text || '').join('\n') : String(user || '')
 
     let content
-    if (userText.includes('【本次指令】')) {
+    if (userText.includes('主图和子图的图注')) {
+      content = JSON.stringify({
+        captions: [
+          { slot: 'main', text: '窗边的咖啡与一本翻旧的书' },
+          { slot: 'secondary', text: '午后的光停在杯沿与桌面' },
+        ],
+      })
+      console.log('[mock-llm] caption request -> 2 captions')
+    } else if (userText.includes('【本次指令】')) {
       // 对话微调：返回一个最小 patch
       content = JSON.stringify({
         reply: '已把标题放大，并换成财经日报配色。',

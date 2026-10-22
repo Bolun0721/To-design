@@ -1,0 +1,12 @@
+{
+  "version": "v0.6.0",
+  "date": "2026-10-22",
+  "gitTag": "v0.6.0",
+  "description": "九套模板双图模式、海报装饰注记、多图补充图注与海报留白优化",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

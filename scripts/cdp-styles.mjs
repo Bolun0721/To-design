@@ -85,7 +85,7 @@ await call('Page.navigate', { url: 'http://127.0.0.1:5173/?demo=1&theme=dark' })
 await waitFor(`document.querySelectorAll('.scheme-card').length === 3`, '画廊')
 await sleep(700)
 
-const results = { packs: [] }
+const results = { packs: [], templateSubs: [] }
 results.packs.push({ id: 'classic', variants: await variants() })
 await shot('style-gallery-classic')
 
@@ -104,6 +104,10 @@ async function openEditor(index, name) {
   )
   await sleep(600)
   await shot(`style-editor-${name}`)
+  const hasSub = await evaluate(
+    `Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero img'))`,
+  )
+  results.templateSubs.push({ name, hasSub })
   await evaluate(`document.querySelector('.back-btn').click(); true;`)
   await waitFor(`document.querySelectorAll('.scheme-card').length === 3`, '返回画廊')
   await sleep(300)
@@ -137,6 +141,9 @@ if (results.packs[2].variants.join(',') !== 'variant-nasa_punk,variant-swiss_sty
 }
 if (results.packs[3].variants.join(',') !== 'variant-classic_broadsheet,variant-tabloid_bold,variant-minimal_masthead') {
   throw new Error('没有回到经典三式')
+}
+if (results.templateSubs.length !== 6 || results.templateSubs.some((item) => !item.hasSub)) {
+  throw new Error(`有模板没有进入双图模式：${JSON.stringify(results.templateSubs)}`)
 }
 if (exceptions.length) throw new Error('页面存在未捕获异常')
 

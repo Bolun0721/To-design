@@ -48,7 +48,7 @@ export function stylePackVariants(id) {
  * 把一组方案套进某个风格包。
  * 保留 content / name / id / 角度，只替换版式、配色、字体和三套坐标。
  */
-export function applyStylePack(schemes, packId) {
+export function applyStylePack(schemes, packId, hasSub = false) {
   const pack = getStylePack(packId)
   return (schemes || []).map((scheme, index) => {
     const variantId = pack.variants[index % pack.variants.length]
@@ -69,8 +69,8 @@ export function applyStylePack(schemes, packId) {
       },
       design_rationale: variant.tagline,
       layouts: {
-        newspaper: buildLayout(variant.id, 'newspaper'),
-        poster: buildLayout(variant.id, 'poster'),
+        newspaper: buildLayout(variant.id, 'newspaper', hasSub),
+        poster: buildLayout(variant.id, 'poster', hasSub),
       },
     }
   })

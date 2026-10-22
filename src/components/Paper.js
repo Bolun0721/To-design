@@ -16,6 +16,7 @@ const BLOCK_LABELS = {
   caption: '图注',
   body: '正文',
   pullquote: '引语',
+  note: '海报注记',
   footer: '页脚',
   scrim: '压暗层',
 }
@@ -57,7 +58,8 @@ export function Paper({
 }) {
   const dims = FORMATS[format]
   const st = resolveStyle(scheme)
-  const layout = scheme.layouts?.[format] || []
+  const rawLayout = scheme.layouts?.[format] || []
+  const layout = rawLayout.filter((block) => block.slot !== 'secondary' || Boolean(photo2))
   const content = scheme.content
   const headlineSize = headlinePx(scheme.layout_variant, format, st.headlineScale)
   const duoHue = Math.round(hexHue(st.palette.accent) - 38)
@@ -276,21 +278,22 @@ export function Paper({
   const renderImage = (treatment, slot = 'hero') => {
     const isSecondary = slot === 'secondary'
     const media = isSecondary ? photo2 : photo
-    const placeholder = (content.image_placeholders || []).find(
-      (item) => String(item?.slot || '').toLowerCase() === (isSecondary ? 'secondary' : 'hero'),
-    )
+    const placeholder = !isSecondary
+      ? (content.image_placeholders || []).find(
+          (item) => String(item?.slot || '').toLowerCase() === 'hero',
+        )
+      : null
+    if (isSecondary && !media) return null
     return html`
       <figure class=${`hero treat-${treatment} ${isSecondary ? 'hero-secondary' : ''}`}>
         ${media
           ? html`<img src=${media.dataUrl} alt=${media.name || '报纸配图'} draggable=${false} />`
           : html`
-              <div class=${`hero-empty ${isSecondary ? 'is-secondary' : ''}`}>
+              <div class="hero-empty">
                 <span class="hero-plus">＋</span>
-                <span>${isSecondary ? '次图占位' : '上传照片后自动填入'}</span>
+                <span>上传照片后自动填入</span>
                 <span class="hero-hint">
-                  ${isSecondary
-                    ? placeholder?.purpose || '上传第二张照片，或保留占位'
-                    : '支持 JPG / PNG，建议 4:3 或 3:4'}
+                  ${placeholder?.purpose || '支持 JPG / PNG，建议 4:3 或 3:4'}
                 </span>
               </div>
             `}
@@ -306,6 +309,7 @@ export function Paper({
     const alignClass = block.align === 'center' ? 'align-center' : ''
     const isBand = block.type === 'pullquote' && scheme.layout_variant === 'tabloid_bold'
     const isSecondary = block.slot === 'secondary'
+    const shapeClass = block.shape ? `shape-${block.shape}` : ''
     const label =
       block.type === 'image' && isSecondary
         ? '次图'
@@ -317,7 +321,7 @@ export function Paper({
     return html`
       <div
         key=${block.id}
-        class=${`block b-${block.type} ${toneClass} ${alignClass} ${isBand ? 'is-band' : ''}`}
+        class=${`block b-${block.type} ${shapeClass} ${toneClass} ${alignClass} ${isBand ? 'is-band' : ''}`}
         data-block-id=${block.id}
         data-type=${block.type}
         data-label=${label}
@@ -367,9 +371,7 @@ export function Paper({
             <span class="cap-mark">图</span>
             <span data-edit=${isSecondary ? 'caption_secondary' : 'caption'}>
               ${isSecondary
-                ? photo2
-                  ? content.caption_secondary || '次图说明待补充'
-                  : '次图占位'
+                ? content.caption_secondary || '次图说明待补充'
                 : content.caption || '照片说明待补充'}
             </span>
           </figcaption>
@@ -399,6 +401,15 @@ export function Paper({
               <span class="quote-text" data-edit="pullquote">${content.pullquote || '一句可以被单独引用的话。'}</span>
             </span>
           </blockquote>
+        `}
+        ${block.type === 'note' &&
+        html`
+          <div class="poster-note">
+            <span class="poster-note-mark">✳</span>
+            <span data-edit="poster_note">
+              ${content.poster_note || 'FRONT PAGE LAB · ISSUE 001'}
+            </span>
+          </div>
         `}
         ${block.type === 'footer' &&
         html`

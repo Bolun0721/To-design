@@ -96,6 +96,18 @@ await call('Browser.setDownloadBehavior', {
   downloadPath: DOWNLOAD,
 })
 
+await evaluate(`
+  localStorage.setItem('fpl.settings.v1', JSON.stringify({
+    provider: 'custom',
+    baseUrl: 'http://127.0.0.1:8787/v1',
+    model: 'mock-model',
+    mode: 'direct',
+    vision: false
+  }));
+  sessionStorage.setItem('fpl.apikey.v1', 'mock-key');
+  true;
+`)
+
 await call('Page.navigate', {
   url: 'http://127.0.0.1:5173/?demo=1&scheme=A&theme=light',
 })
@@ -111,34 +123,37 @@ results.initialImages = await evaluate(
 )
 results.slotRows = await evaluate(`document.querySelectorAll('.slot-row').length`)
 
-// 移除次图
+// 移除子图：版式回到单图，不留占位块
 await evaluate(`(() => {
-  const row = [...document.querySelectorAll('.slot-row')].find((r) => r.innerText.includes('次图'));
+  const row = [...document.querySelectorAll('.slot-row')].find((r) => r.innerText.includes('子图'));
   const btn = row && [...row.querySelectorAll('button')].find((b) => b.innerText.includes('移除'));
   if (btn) btn.click();
   return Boolean(btn);
 })()`)
 await waitFor(
   `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelectorAll('.paper .hero img').length === 1 &&
-   Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero-empty'))`,
-  '次图占位',
+   !document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"]')`,
+  '子图回收',
 )
 results.afterRemoveImages = await evaluate(
   `document.querySelector('iframe.paper-frame').contentDocument.querySelectorAll('.paper .hero img').length`,
 )
-results.placeholderText = await evaluate(
-  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero-empty')?.innerText`,
+results.hasSecondaryBlock = await evaluate(
+  `Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"]'))`,
+)
+results.hasSecondaryPlaceholder = await evaluate(
+  `Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero-empty'))`,
 )
 
 await fs.mkdir(DOWNLOAD, { recursive: true })
 await evaluate(`document.querySelector('.action-btn.primary').click(); true;`)
 const file = await waitForPng()
-results.placeholderExport = Boolean(file)
-results.placeholderToast = await evaluate(`document.querySelector('.toast')?.innerText || ''`)
-results.placeholderError = await evaluate(`document.querySelector('.error-box')?.innerText || ''`)
+results.singleExport = Boolean(file)
+results.singleToast = await evaluate(`document.querySelector('.toast')?.innerText || ''`)
+results.singleError = await evaluate(`document.querySelector('.error-box')?.innerText || ''`)
 if (file) await fs.rm(file, { force: true })
 
-// 重新上传次图
+// 重新上传子图
 const doc = await call('DOM.getDocument', { depth: -1 })
 const node = await call('DOM.querySelector', {
   nodeId: doc.result.root.nodeId,
@@ -151,25 +166,42 @@ await call('DOM.setFileInputFiles', {
 await waitFor(
   `document.querySelector('iframe.paper-frame')?.contentDocument?.querySelectorAll('.paper .hero img').length === 2 &&
    Boolean(document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondary"] .hero img'))`,
-  '次图已上传',
+  '子图已上传',
 )
 results.restoredImages = await evaluate(
   `document.querySelector('iframe.paper-frame').contentDocument.querySelectorAll('.paper .hero img').length`,
 )
+
+// 生成补充图注并重排
+await evaluate(`document.querySelector('.slot-caption').click(); true;`)
+await waitFor(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondaryCaption"] .caption')?.innerText.includes('杯沿')`,
+  '补充图注',
+  30000,
+)
 results.captionSecondary = await evaluate(
   `document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="secondaryCaption"] .caption')?.innerText`,
+)
+results.captionMain = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelector('[data-block-id="caption"] .caption')?.innerText`,
+)
+results.layoutAfterCaptions = await evaluate(
+  `document.querySelector('iframe.paper-frame').contentDocument.querySelectorAll('.paper .hero img').length`,
 )
 results.exceptions = exceptions.length
 
 console.log(JSON.stringify(results, null, 2))
 
 if (results.initialImages !== 2) throw new Error('示例没有渲染两张图')
-if (results.afterRemoveImages !== 1) throw new Error('移除次图后图片数量异常')
-if (!results.placeholderText) throw new Error('次图占位没有出现')
-if (!results.placeholderExport) throw new Error('占位状态导出失败')
-if (results.placeholderError) throw new Error(`占位导出出现错误：${results.placeholderError}`)
-if (results.restoredImages !== 2) throw new Error('重新上传次图后没有恢复两图')
-if (!results.captionSecondary?.includes('午后')) throw new Error('次图说明没有渲染')
+if (results.afterRemoveImages !== 1) throw new Error('移除子图后图片数量异常')
+if (results.hasSecondaryBlock) throw new Error('移除子图后仍保留子图版块')
+if (results.hasSecondaryPlaceholder) throw new Error('移除子图后仍保留占位块')
+if (!results.singleExport) throw new Error('单图状态导出失败')
+if (results.singleError) throw new Error(`单图导出出现错误：${results.singleError}`)
+if (results.restoredImages !== 2) throw new Error('重新上传子图后没有恢复两图')
+if (!results.captionSecondary?.includes('杯沿')) throw new Error('补充图注没有渲染到子图')
+if (!results.captionMain) throw new Error('补充图注没有渲染到主图')
+if (results.layoutAfterCaptions !== 2) throw new Error('补充图注后版式没有保持双图')
 if (exceptions.length) throw new Error('页面存在未捕获异常')
 
 await call('Browser.close').catch(() => {})
