@@ -34,6 +34,13 @@ prompts/
       designPrompt.js       # 设计模式自定义板块 / 坐标 / 互换
       designSkill.js
       captions.js
+    v0.9.0/
+      manifest.json
+      systemPrompt.js
+      chat.js
+      designPrompt.js       # 同类型编号 / 页脚等类型 / 删除后新增
+      designSkill.js
+      captions.js
 ```
 
 ## 当前快照
@@ -44,6 +51,7 @@ prompts/
 | `v0.6.0` | 2026-10-22 | 九套模板双图、海报装饰注记、多图补充图注；新增 `captions.js` |
 | `v0.7.0` | 2026-10-25 | 标准模板 / 设计模式切换；新增 `designPrompt.js`，设计模式可自由选模板、配色、字体和正文量 |
 | `v0.8.0` | 2026-10-25 | 设计模式支持自定义板块、绝对坐标、删除板块、完整矩形互换；对话新增重叠回退 |
+| `v0.9.0` | 2026-10-25 | 同类型板块编号；补全页脚 / 报头 / 日期栏 / 署名新增类型与内容渲染；删除后仍可新增同类型 |
 
 ## 新增版本
 

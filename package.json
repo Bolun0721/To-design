@@ -1,7 +1,7 @@
 {
   "name": "front-page-lab",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "description": "头版智造局 — BYOK 智能报纸/海报生成器 demo（零构建）",
   "scripts": {

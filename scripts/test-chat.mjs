@@ -165,4 +165,39 @@ assert.ok(added.scheme.layouts.newspaper.some((b) => b.id === 'quote2'))
 assert.ok(added.scheme.design_layout.extra_blocks.some((b) => b.id === 'quote2'))
 console.log('✓ design chat can add a custom text block')
 
+const removedFooter = applyChatPatch(
+  designScheme,
+  'newspaper',
+  { remove_blocks: ['footer'] },
+  { mode: 'design' },
+)
+assert.equal(
+  removedFooter.scheme.layouts.newspaper.some((b) => b.type === 'footer'),
+  false,
+)
+const reAddedFooter = applyChatPatch(
+  removedFooter.scheme,
+  'newspaper',
+  {
+    extra_blocks: [
+      {
+        id: 'footer2',
+        type: 'footer',
+        x: 5,
+        y: 90,
+        w: 60,
+        h: 3,
+        text: '重新生成的页脚',
+      },
+    ],
+  },
+  { mode: 'design' },
+)
+assert.ok(reAddedFooter.scheme.layouts.newspaper.some((b) => b.id === 'footer2'))
+assert.equal(
+  reAddedFooter.scheme.layouts.newspaper.find((b) => b.id === 'footer2').type,
+  'footer',
+)
+console.log('✓ footer can be re-added after the last one is deleted')
+
 console.log('\nall chat patch tests passed')

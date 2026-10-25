@@ -3,12 +3,16 @@ import { buildLayout } from './presets.js'
 import { clamp } from '../lib/format.js'
 
 export const EXTRA_BLOCK_TYPES = [
+  'masthead',
+  'dateline',
   'headline',
   'subhead',
+  'byline',
   'caption',
   'body',
   'pullquote',
   'note',
+  'footer',
 ]
 
 const round1 = (value) => Math.round(value * 10) / 10

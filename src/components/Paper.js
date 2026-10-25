@@ -60,6 +60,9 @@ export function Paper({
   const st = resolveStyle(scheme)
   const rawLayout = scheme.layouts?.[format] || []
   const layout = rawLayout.filter((block) => block.slot !== 'secondary' || Boolean(photo2))
+  const typeCounts = {}
+  for (const block of layout) typeCounts[block.type] = (typeCounts[block.type] || 0) + 1
+  const typeOrdinals = {}
   const content = scheme.content
   const headlineSize = headlinePx(scheme.layout_variant, format, st.headlineScale)
   const duoHue = Math.round(hexHue(st.palette.accent) - 38)
@@ -312,12 +315,9 @@ export function Paper({
     const customText = typeof block.text === 'string'
     const blockEditKey = customText ? `block:${block.id}` : null
     const shapeClass = block.shape ? `shape-${block.shape}` : ''
-    const label =
-      block.type === 'image' && isSecondary
-        ? '次图'
-        : block.type === 'caption' && isSecondary
-          ? '次图注'
-          : BLOCK_LABELS[block.type] || ''
+    const baseLabel = BLOCK_LABELS[block.type] || block.type
+    const ordinal = (typeOrdinals[block.type] = (typeOrdinals[block.type] || 0) + 1)
+    const label = typeCounts[block.type] > 1 ? `${baseLabel} ${ordinal}` : baseLabel
     const z = 2 + index
 
     return html`
@@ -334,7 +334,9 @@ export function Paper({
           <div class="masthead">
             <span class="m-rule top"></span>
             <div class="m-row">
-              <span class="m-name">头版智造局</span>
+              <span class="m-name" data-edit=${blockEditKey || undefined}>
+                ${customText ? block.text : '头版智造局'}
+              </span>
               <span class="m-side">
                 <span class="m-en">FRONT PAGE LAB</span>
                 <span class="m-tagline">创意头版 · 非真实新闻</span>
@@ -346,12 +348,16 @@ export function Paper({
         ${block.type === 'dateline' &&
         html`
           <div class="dateline">
-            <span>${content.date || chineseDate()}</span>
-            <span class="dl-week">${weekdayCN()}</span>
-            <span class="dl-sep"></span>
-            <span>第 001 期</span>
-            <span class="dl-fill"></span>
-            <span class="dl-tag">本版 · ${scheme.name}</span>
+            ${customText
+              ? html`<span data-edit=${blockEditKey}>${block.text}</span>`
+              : html`
+                  <span>${content.date || chineseDate()}</span>
+                  <span class="dl-week">${weekdayCN()}</span>
+                  <span class="dl-sep"></span>
+                  <span>第 001 期</span>
+                  <span class="dl-fill"></span>
+                  <span class="dl-tag">本版 · ${scheme.name}</span>
+                `}
           </div>
         `}
         ${block.type === 'headline' &&
@@ -361,8 +367,9 @@ export function Paper({
         ${block.type === 'byline' &&
         html`
           <div class="byline">
-            <span>撰文 · 智造局编辑部</span>
-            <span>摄影 · 读者来稿</span>
+            ${customText
+              ? html`<span data-edit=${blockEditKey}>${block.text}</span>`
+              : html`<span>撰文 · 智造局编辑部</span><span>摄影 · 读者来稿</span>`}
           </div>
         `}
         ${block.type === 'image' && renderImage(st.imageTreatment, block.slot)}
@@ -422,7 +429,9 @@ export function Paper({
         ${block.type === 'footer' &&
         html`
           <div class="paper-footer">
-            <span>${disclaimer}</span>
+            <span data-edit=${blockEditKey || undefined}>
+              ${customText ? block.text : disclaimer}
+            </span>
             <span>FRONT PAGE LAB · 01</span>
           </div>
         `}

@@ -150,13 +150,18 @@ ${FONT_LIST}
   - body / pullquote / posterNote / footer / scrim
   - 不同模板不一定包含全部 id；不存在时会被忽略。
 - extra_blocks：新增板块，最多 4 个。允许类型：
+  - masthead（新增报头）
+  - dateline（新增日期栏）
   - headline（新增主标题文字）
   - subhead（新增副标题）
+  - byline（新增署名栏）
   - caption（新增图注）
   - body（新增正文块）
   - pullquote（新增引语）
   - note（新增海报注记）
+  - footer（新增页脚）
   - text 必须是纯文本（≤160 字）；tone 可为 invert，align 可为 center。h 可省略，文字块会自动撑高。
+  - **页脚必须用 footer，不能用 note 代替；报头 / 日期 / 署名 / 页脚是不同板块类型，不要混用。**
 - remove_blocks：删除模板里不需要的板块 id（最多 6 个），用腾出的空间组织新层级。
 - 所有自定义只作用于当前画面格式；切到另一种格式时使用模板默认版式。不要输出模板不存在的板块类型，也不要让板块跑到纸张外。
 - 如果你想让两个已有板块交换位置，不要用两个相对位移；生成阶段直接给它们写相同的占位矩形即可（对话阶段使用 layout_swaps）。
@@ -201,8 +206,14 @@ export function buildDesignChatSystemPrompt() {
 - layout_moves：局部相对位移；dx / dy 为百分比点（-30..30），dw 为宽度变化（-30..30）
 - layout_swaps：交换板块的完整占位矩形，例如 [["headline","pullquote"]]；**用户要求互换时优先用它，不要用两段方向相反的 layout_moves**
 - layout_placements：绝对坐标，例如 [{"block_id":"headline","x":4,"y":10,"w":60,"h":8}]；左上角定位，必须在纸张内
-- extra_blocks：新增板块（设计模式），字段同生成；type 仅限 headline / subhead / caption / body / pullquote / note
+- extra_blocks：新增板块（设计模式），字段同生成；type 仅限 masthead / dateline / headline / subhead / byline / caption / body / pullquote / note / footer
 - remove_blocks：删除当前模板中不需要的板块 id
+
+# 页脚与同类型板块
+
+- 用户要“加一个页脚 / 报头 / 日期栏 / 署名”时，必须使用对应的 footer / masthead / dateline / byline 类型，不要用 note 或其他板块替代。
+- 同类型板块可以有多个（例如两个页脚、两个引语）。id 必须唯一，例如 footer2、pullquote2；前端会显示成「页脚 1」「页脚 2」。
+- 删除某个类型的最后一个板块后，仍然可以用 extra_blocks 新增该类型；不要因为画布上暂时没有这个类型就不生成。
 
 # 坐标与重叠
 

@@ -1,0 +1,13 @@
+{
+  "version": "v0.9.0",
+  "date": "2026-10-25",
+  "gitTag": "v0.9.0",
+  "description": "同类型板块编号、页脚/报头/日期/署名新增类型、页脚内容渲染；删除后仍可新增同类型板块",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

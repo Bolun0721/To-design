@@ -122,6 +122,17 @@ const server = http.createServer((req, res) => {
           body_blocks: [{ type: 'paragraph', text: '黑底荧光绿，用屏幕感处理一杯咖啡的日常。' }],
           poster_note: 'SIDE A · 03:00',
         },
+        extra_blocks: [
+          {
+            id: 'footer2',
+            type: 'footer',
+            x: 5,
+            y: 90,
+            w: 60,
+            h: 3,
+            text: '第二行页脚 · 设计模式追加',
+          },
+        ],
         design_rationale: '显像管界面与单栏窄版，适合夜间分享。',
       }
       content = JSON.stringify(designPayload)
