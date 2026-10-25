@@ -29,6 +29,7 @@ import { chineseDate, clampText, shortDate } from './lib/format.js'
 import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto } from './lib/image.js'
 import { downloadDataUrl, printDataUrl } from './lib/exportPaper.js'
 import { FORMATS, buildLayout, resolveStyle } from './config/presets.js'
+import { buildDesignLayout } from './config/designLayout.js'
 import { applyStylePack, nextStylePack, STYLE_PACK_IDS } from './config/stylePacks.js'
 import {
   clearCurrentDraftId,
@@ -234,8 +235,8 @@ export function App() {
         ? result.schemes.map((scheme) => ({
             ...scheme,
             layouts: {
-              newspaper: buildLayout(scheme.layout_variant, 'newspaper', hasSub),
-              poster: buildLayout(scheme.layout_variant, 'poster', hasSub),
+              newspaper: buildDesignLayout(scheme, 'newspaper', hasSub),
+              poster: buildDesignLayout(scheme, 'poster', hasSub),
             },
           }))
         : applyStylePack(result.schemes, stylePack, hasSub)
@@ -604,17 +605,24 @@ export function App() {
     }
   }, [apiKey, applyResult, busy, description, designMode, format, mode, photo, settings, showToast])
 
-  const relayoutAll = useCallback((hasSub) => {
-    setSchemes((prev) =>
-      prev.map((scheme) => ({
-        ...scheme,
-        layouts: {
-          newspaper: buildLayout(scheme.layout_variant, 'newspaper', hasSub),
-          poster: buildLayout(scheme.layout_variant, 'poster', hasSub),
-        },
-      })),
-    )
-  }, [])
+  const relayoutAll = useCallback(
+    (hasSub) => {
+      setSchemes((prev) =>
+        prev.map((scheme) => ({
+          ...scheme,
+          layouts: {
+            newspaper: designMode
+              ? buildDesignLayout(scheme, 'newspaper', hasSub)
+              : buildLayout(scheme.layout_variant, 'newspaper', hasSub),
+            poster: designMode
+              ? buildDesignLayout(scheme, 'poster', hasSub)
+              : buildLayout(scheme.layout_variant, 'poster', hasSub),
+          },
+        })),
+      )
+    },
+    [designMode],
+  )
 
   const handlePhotoFile = useCallback(
     async (file, slot = 'hero') => {
@@ -659,13 +667,17 @@ export function App() {
         ...scheme,
         content: { ...scheme.content, caption_secondary: '' },
         layouts: {
-          newspaper: buildLayout(scheme.layout_variant, 'newspaper', false),
-          poster: buildLayout(scheme.layout_variant, 'poster', false),
+          newspaper: designMode
+            ? buildDesignLayout(scheme, 'newspaper', false)
+            : buildLayout(scheme.layout_variant, 'newspaper', false),
+          poster: designMode
+            ? buildDesignLayout(scheme, 'poster', false)
+            : buildLayout(scheme.layout_variant, 'poster', false),
         },
       })),
     )
     showToast('子图已移除，版式已回收')
-  }, [showToast])
+  }, [designMode, showToast])
 
   const enrichCaptions = useCallback(async () => {
     if (!activeScheme || !photo2 || captionBusy) return
@@ -736,8 +748,12 @@ export function App() {
                   caption_secondary: nextSub || scheme.content.caption_secondary,
                 },
                 layouts: {
-                  newspaper: buildLayout(scheme.layout_variant, 'newspaper', true),
-                  poster: buildLayout(scheme.layout_variant, 'poster', true),
+                  newspaper: designMode
+                    ? buildDesignLayout(scheme, 'newspaper', true)
+                    : buildLayout(scheme.layout_variant, 'newspaper', true),
+                  poster: designMode
+                    ? buildDesignLayout(scheme, 'poster', true)
+                    : buildLayout(scheme.layout_variant, 'poster', true),
                 },
               }
             : scheme,
@@ -754,7 +770,7 @@ export function App() {
       captionAbortRef.current = null
       setCaptionBusy(false)
     }
-  }, [activeScheme, apiKey, captionBusy, format, photo, photo2, settings, showToast])
+  }, [activeScheme, apiKey, captionBusy, designMode, format, photo, photo2, settings, showToast])
 
   const updateStyle = useCallback(
     (patch, target = 'style') => {
@@ -789,6 +805,25 @@ export function App() {
       setSchemes((prev) =>
         prev.map((scheme, index) => {
           if (index !== active) return scheme
+          if (key.startsWith('block:')) {
+            const id = key.slice(6)
+            const text = clampText(value, 160)
+            const layouts = {}
+            for (const fmt of ['newspaper', 'poster']) {
+              layouts[fmt] = (scheme.layouts?.[fmt] || []).map((block) =>
+                block.id === id ? { ...block, text } : block,
+              )
+            }
+            const design = scheme.design_layout
+              ? {
+                  ...scheme.design_layout,
+                  extra_blocks: (scheme.design_layout.extra_blocks || []).map((block) =>
+                    block.id === id ? { ...block, text } : block,
+                  ),
+                }
+              : null
+            return { ...scheme, layouts, ...(design ? { design_layout: design } : {}) }
+          }
           const content = { ...scheme.content }
           if (key === 'headline') content.headline = clampText(value, 60)
           else if (key === 'subhead') content.subhead = clampText(value, 80)
@@ -855,7 +890,7 @@ export function App() {
           }
         }
         const latest = schemesRef.current.find((item) => item.id === id) || scheme
-        const { scheme: nextScheme, changed } = applyChatPatch(latest, format, patch, {
+        const { scheme: nextScheme, changed, warning } = applyChatPatch(latest, format, patch, {
           mode,
           hasSub: Boolean(photo2),
         })
@@ -866,6 +901,7 @@ export function App() {
           }))
           setSchemes((prev) => prev.map((item) => (item.id === id ? nextScheme : item)))
         }
+        if (warning) showToast(warning, 'error')
 
         const reply =
           clampText(String(result.json?.reply || '').trim(), 120) ||
@@ -925,12 +961,23 @@ export function App() {
 
   const resetLayout = useCallback(() => {
     setSchemes((prev) =>
-      prev.map((scheme, index) =>
-        index === active ? rebuildLayout(scheme, format, Boolean(photo2)) : scheme,
-      ),
+      prev.map((scheme, index) => {
+        if (index !== active) return scheme
+        if (designMode) {
+          const cleaned = { ...scheme, design_layout: null }
+          return {
+            ...cleaned,
+            layouts: {
+              newspaper: buildLayout(scheme.layout_variant, 'newspaper', Boolean(photo2)),
+              poster: buildLayout(scheme.layout_variant, 'poster', Boolean(photo2)),
+            },
+          }
+        }
+        return rebuildLayout(scheme, format, Boolean(photo2))
+      }),
     )
-    showToast('版式已重置')
-  }, [active, format, photo2, showToast])
+    showToast(designMode ? '已清除自定义版式，回到模板' : '版式已重置')
+  }, [active, designMode, format, photo2, showToast])
 
   const doExport = useCallback(async () => {
     if (!activeScheme || exporting) return

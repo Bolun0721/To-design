@@ -3,6 +3,7 @@ import { buildDemoPayload } from '../src/agent/demoData.js'
 import { normalizeSchemes } from '../src/agent/validate.js'
 import { applyChatPatch } from '../src/agent/chat.js'
 import { COLOR_PRESETS } from '../src/config/presets.js'
+import { overlaps, rectOf } from '../src/config/designLayout.js'
 
 const date = '2026年10月21日'
 const result = normalizeSchemes(buildDemoPayload({ date }), { date })
@@ -61,6 +62,16 @@ assert.ok(moved.y >= 0)
 assert.ok(Array.from(clamped.scheme.content.headline).length <= 15)
 console.log('✓ out-of-range moves and text are clamped')
 
+const standardSwap = applyChatPatch(scheme, 'newspaper', {
+  layout_swaps: [['headline', 'pullquote']],
+})
+assert.equal(standardSwap.changed, true)
+assert.equal(
+  standardSwap.scheme.layouts.newspaper.find((b) => b.id === 'headline').x,
+  scheme.layouts.newspaper.find((b) => b.id === 'pullquote').x,
+)
+console.log('✓ standard chat also supports layout_swaps')
+
 const designScheme = normalizeSchemes(buildDemoPayload({ date }), {
   date,
   mode: 'design',
@@ -93,5 +104,65 @@ const designEmptyBody = applyChatPatch(
 assert.equal(designEmptyBody.changed, true)
 assert.deepEqual(designEmptyBody.scheme.content.body_blocks, [])
 console.log('✓ design chat can switch layout and clear body')
+
+const headlineBefore = designScheme.layouts.newspaper.find((b) => b.id === 'headline')
+const quoteBefore = designScheme.layouts.newspaper.find((b) => b.id === 'pullquote')
+const swapped = applyChatPatch(
+  designScheme,
+  'newspaper',
+  { layout_swaps: [['headline', 'pullquote']] },
+  { mode: 'design' },
+)
+const headlineAfter = swapped.scheme.layouts.newspaper.find((b) => b.id === 'headline')
+const quoteAfter = swapped.scheme.layouts.newspaper.find((b) => b.id === 'pullquote')
+assert.equal(swapped.changed, true)
+assert.equal(headlineAfter.x, quoteBefore.x)
+assert.equal(quoteAfter.x, headlineBefore.x)
+assert.equal(overlaps(rectOf(headlineAfter), rectOf(quoteAfter)), false)
+console.log('✓ layout_swaps exchanges full slots without overlap')
+
+const blocked = applyChatPatch(
+  designScheme,
+  'newspaper',
+  {
+    layout_placements: [
+      {
+        block_id: 'headline',
+        x: quoteBefore.x,
+        y: quoteBefore.y,
+        w: quoteBefore.w,
+        h: quoteBefore.h ?? 8,
+      },
+    ],
+  },
+  { mode: 'design' },
+)
+const blockedHeadline = blocked.scheme.layouts.newspaper.find((b) => b.id === 'headline')
+assert.ok(blocked.warning.includes('重叠'))
+assert.equal(blockedHeadline.x, headlineBefore.x)
+assert.equal(blockedHeadline.y, headlineBefore.y)
+console.log('✓ conflicting placement is reverted with a warning')
+
+const added = applyChatPatch(
+  designScheme,
+  'newspaper',
+  {
+    extra_blocks: [
+      {
+        id: 'quote2',
+        type: 'pullquote',
+        x: 5,
+        y: 82,
+        w: 40,
+        text: '新增的第二条引语',
+      },
+    ],
+  },
+  { mode: 'design' },
+)
+assert.equal(added.changed, true)
+assert.ok(added.scheme.layouts.newspaper.some((b) => b.id === 'quote2'))
+assert.ok(added.scheme.design_layout.extra_blocks.some((b) => b.id === 'quote2'))
+console.log('✓ design chat can add a custom text block')
 
 console.log('\nall chat patch tests passed')

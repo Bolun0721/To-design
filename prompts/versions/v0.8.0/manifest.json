@@ -1,0 +1,13 @@
+{
+  "version": "v0.8.0",
+  "date": "2026-10-25",
+  "gitTag": "v0.8.0",
+  "description": "设计模式支持自定义板块、绝对坐标、删除板块与完整占位矩形互换；新增对话重叠回退",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

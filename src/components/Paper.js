@@ -309,6 +309,8 @@ export function Paper({
     const alignClass = block.align === 'center' ? 'align-center' : ''
     const isBand = block.type === 'pullquote' && scheme.layout_variant === 'tabloid_bold'
     const isSecondary = block.slot === 'secondary'
+    const customText = typeof block.text === 'string'
+    const blockEditKey = customText ? `block:${block.id}` : null
     const shapeClass = block.shape ? `shape-${block.shape}` : ''
     const label =
       block.type === 'image' && isSecondary
@@ -353,9 +355,9 @@ export function Paper({
           </div>
         `}
         ${block.type === 'headline' &&
-        html`<h1 class="headline" data-edit="headline">${content.headline}</h1>`}
+        html`<h1 class="headline" data-edit=${blockEditKey || 'headline'}>${customText ? block.text : content.headline}</h1>`}
         ${block.type === 'subhead' &&
-        html`<p class="subhead" data-edit="subhead">${content.subhead}</p>`}
+        html`<p class="subhead" data-edit=${blockEditKey || 'subhead'}>${customText ? block.text : content.subhead}</p>`}
         ${block.type === 'byline' &&
         html`
           <div class="byline">
@@ -369,27 +371,31 @@ export function Paper({
         html`
           <figcaption class=${`caption ${isSecondary ? 'caption-secondary' : ''}`}>
             <span class="cap-mark">图</span>
-            <span data-edit=${isSecondary ? 'caption_secondary' : 'caption'}>
-              ${isSecondary
-                ? content.caption_secondary || '次图说明待补充'
-                : content.caption || '照片说明待补充'}
+            <span data-edit=${blockEditKey || (isSecondary ? 'caption_secondary' : 'caption')}>
+              ${customText
+                ? block.text
+                : isSecondary
+                  ? content.caption_secondary || '次图说明待补充'
+                  : content.caption || '照片说明待补充'}
             </span>
           </figcaption>
         `}
         ${block.type === 'body' &&
         html`
           <div class="body" style=${`column-count:${st.columns}`}>
-            ${(content.body_blocks || []).map((p, i) => {
-              const chars = Array.from(String(p.text || ''))
-              const withDropCap = useDropCap && i === 0 && chars.length > 1
-              return html`
-                <p data-edit=${`paragraph:${i}`}>
-                  ${withDropCap
-                    ? html`<span class="dropcap">${chars[0]}</span>${chars.slice(1).join('')}`
-                    : p.text}
-                </p>
-              `
-            })}
+            ${customText
+              ? html`<p data-edit=${blockEditKey}>${block.text}</p>`
+              : (content.body_blocks || []).map((p, i) => {
+                  const chars = Array.from(String(p.text || ''))
+                  const withDropCap = useDropCap && i === 0 && chars.length > 1
+                  return html`
+                    <p data-edit=${`paragraph:${i}`}>
+                      ${withDropCap
+                        ? html`<span class="dropcap">${chars[0]}</span>${chars.slice(1).join('')}`
+                        : p.text}
+                    </p>
+                  `
+                })}
           </div>
         `}
         ${block.type === 'pullquote' &&
@@ -398,7 +404,9 @@ export function Paper({
             <span class="quote-mark">“</span>
             <span class="quote-body">
               <span class="quote-label">手记 / NOTE</span>
-              <span class="quote-text" data-edit="pullquote">${content.pullquote || '一句可以被单独引用的话。'}</span>
+              <span class="quote-text" data-edit=${blockEditKey || 'pullquote'}>
+                ${customText ? block.text : content.pullquote || '一句可以被单独引用的话。'}
+              </span>
             </span>
           </blockquote>
         `}
@@ -406,8 +414,8 @@ export function Paper({
         html`
           <div class="poster-note">
             <span class="poster-note-mark">✳</span>
-            <span data-edit="poster_note">
-              ${content.poster_note || 'FRONT PAGE LAB · ISSUE 001'}
+            <span data-edit=${blockEditKey || 'poster_note'}>
+              ${customText ? block.text : content.poster_note || 'FRONT PAGE LAB · ISSUE 001'}
             </span>
           </div>
         `}

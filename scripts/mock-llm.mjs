@@ -81,6 +81,19 @@ const server = http.createServer((req, res) => {
           body_blocks: [{ type: 'paragraph', text: '设计模式允许用更短的正文，把视觉重心交给标题和图片。' }],
           poster_note: 'BAUHAUS STUDY · 001',
         },
+        layout_overrides: [{ block_id: 'headline', x: 4, y: 11, w: 58, h: 9 }],
+        extra_blocks: [
+          {
+            id: 'quote2',
+            type: 'pullquote',
+            x: 5,
+            y: 82,
+            w: 42,
+            h: 9,
+            text: '设计模式允许新增第二个引语板块。',
+            tone: 'invert',
+          },
+        ],
         design_rationale: '红黄蓝几何切分，适合展陈与社交分享。',
       }
       designPayload.schemes[1] = {

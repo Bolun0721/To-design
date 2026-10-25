@@ -5,6 +5,12 @@ import { normalizeSchemes } from '../src/agent/validate.js'
 import { chineseDate } from '../src/lib/format.js'
 import { applyStylePack, nextStylePack, STYLE_PACKS } from '../src/config/stylePacks.js'
 import { VARIANTS } from '../src/config/presets.js'
+import {
+  buildDesignLayout,
+  overlaps,
+  rectOf,
+  swapLayoutSlots,
+} from '../src/config/designLayout.js'
 
 const date = '2026年10月20日'
 const demo = buildDemoPayload({ date, format: 'newspaper' })
@@ -51,6 +57,30 @@ const repairedStandard = normalizeSchemes(freePayload, { date, format: 'newspape
 assert.notEqual(repairedStandard.schemes[1].layout_variant, 'classic_broadsheet')
 assert.equal(repairedStandard.schemes[1].content.body_blocks.length > 0, true)
 console.log('✓ design mode keeps free template/color choices and allows empty body')
+
+const customScheme = designed.schemes[0]
+customScheme.design_layout = {
+  format: 'newspaper',
+  overrides: [{ block_id: 'headline', x: 2, y: 2, w: 50 }],
+  extra_blocks: [
+    { id: 'quote2', type: 'pullquote', x: 5, y: 82, w: 40, text: '新增的第二条引语' },
+  ],
+  removed: [],
+}
+const customLayout = buildDesignLayout(customScheme, 'newspaper', false)
+const customHeadline = customLayout.find((block) => block.id === 'headline')
+const customQuote = customLayout.find((block) => block.id === 'quote2')
+assert.equal(customHeadline.x, 2)
+assert.equal(customHeadline.w, 50)
+assert.ok(customQuote)
+assert.equal(customQuote.text, '新增的第二条引语')
+const headlineBeforeSwap = { ...customHeadline }
+const quoteBeforeSwap = { ...customQuote }
+assert.equal(swapLayoutSlots(customLayout, 'headline', 'quote2'), true)
+assert.equal(customHeadline.x, quoteBeforeSwap.x)
+assert.equal(customQuote.x, headlineBeforeSwap.x)
+assert.equal(overlaps(rectOf(customHeadline), rectOf(customQuote)), false)
+console.log('✓ design layout adds blocks, applies coords and swaps slots without overlap')
 
 const prompt = buildUserPrompt({
   description: '两杯咖啡',

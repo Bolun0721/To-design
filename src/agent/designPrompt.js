@@ -53,7 +53,24 @@ const SCHEMA = `{
         "date": "当前日期",
         "image_placeholders": []
       },
-      "design_rationale": "设计逻辑 / 适用场景 / 关键优势，≤50 字"
+      "design_rationale": "设计逻辑 / 适用场景 / 关键优势，≤50 字",
+      "layout_overrides": [
+        { "block_id": "headline", "x": 4, "y": 10, "w": 60, "h": 8 }
+      ],
+      "extra_blocks": [
+        {
+          "id": "quote2",
+          "type": "pullquote",
+          "x": 5,
+          "y": 74,
+          "w": 40,
+          "h": 8,
+          "text": "新增板块的文字",
+          "tone": "invert",
+          "align": "left"
+        }
+      ],
+      "remove_blocks": ["body"]
     }
   ]
 }`
@@ -122,6 +139,28 @@ ${FONT_LIST}
 
 如果用户提供主图 + 子图，为两张图分别写 caption 和 caption_secondary；如果没有子图，不要生成子图占位对象，前端会自动使用单图版式。不要把同一张图复用成两张不同图片。
 
+# 版式自定义（设计模式）
+
+设计模式允许你跳出模板的固定坐标，但只在当前画面格式内生效：
+
+- 坐标使用百分比，板块以左上角定位：x / y 是左上角，w / h 是宽高；所有值必须在 0–100 内，且 x + w ≤ 100、y + h ≤ 100。
+- layout_overrides：移动 / 缩放模板已有板块，最多 12 条。block_id 使用当前方案的模板块 id：
+  - masthead / dateline / headline / subhead / byline
+  - hero / secondary / caption / secondaryCaption
+  - body / pullquote / posterNote / footer / scrim
+  - 不同模板不一定包含全部 id；不存在时会被忽略。
+- extra_blocks：新增板块，最多 4 个。允许类型：
+  - headline（新增主标题文字）
+  - subhead（新增副标题）
+  - caption（新增图注）
+  - body（新增正文块）
+  - pullquote（新增引语）
+  - note（新增海报注记）
+  - text 必须是纯文本（≤160 字）；tone 可为 invert，align 可为 center。h 可省略，文字块会自动撑高。
+- remove_blocks：删除模板里不需要的板块 id（最多 6 个），用腾出的空间组织新层级。
+- 所有自定义只作用于当前画面格式；切到另一种格式时使用模板默认版式。不要输出模板不存在的板块类型，也不要让板块跑到纸张外。
+- 如果你想让两个已有板块交换位置，不要用两个相对位移；生成阶段直接给它们写相同的占位矩形即可（对话阶段使用 layout_swaps）。
+
 # 文字与事实
 
 - 主标题 ≤15 字，副标题 ≤25 字，图注 ≤30 字，引语 ≤24 字；名字 ≤10 字，design_rationale ≤50 字，summary ≤60 字。
@@ -159,7 +198,18 @@ export function buildDesignChatSystemPrompt() {
 - style.image_treatment：original / halftone_mono / duotone
 - content.headline / subhead / caption / caption_secondary / poster_note / pullquote
 - content.body_blocks：0–4 段，总长约 320 字以内
-- layout_moves：dx / dy 为百分比点（-30..30），dw 为宽度变化（-30..30）
+- layout_moves：局部相对位移；dx / dy 为百分比点（-30..30），dw 为宽度变化（-30..30）
+- layout_swaps：交换板块的完整占位矩形，例如 [["headline","pullquote"]]；**用户要求互换时优先用它，不要用两段方向相反的 layout_moves**
+- layout_placements：绝对坐标，例如 [{"block_id":"headline","x":4,"y":10,"w":60,"h":8}]；左上角定位，必须在纸张内
+- extra_blocks：新增板块（设计模式），字段同生成；type 仅限 headline / subhead / caption / body / pullquote / note
+- remove_blocks：删除当前模板中不需要的板块 id
+
+# 坐标与重叠
+
+- 所有 x / y / w / h 都是百分比，左上角定位；x + w ≤ 100，y + h ≤ 100。
+- 不要用两个相对位移模拟互换：大板块的相对位移会造成中途重叠。需要交换时用 layout_swaps，它会原子交换两个占位矩形。
+- 需要精确落点时用 layout_placements；应用后前端会检查“新产生的重叠”，冲突的移动会被回退。
+- 如果两个板块本来就有意叠压（例如小报标题压图），保持原样即可，不要为了消除装饰性叠压而乱移。
 
 # 模板白名单
 
@@ -190,7 +240,11 @@ ${FONT_LIST}
       "poster_note": "可选",
       "body_blocks": ["可选"]
     },
-    "layout_moves": [{ "block_id": "headline", "dx": 0, "dy": 3 }]
+    "layout_moves": [{ "block_id": "headline", "dx": 0, "dy": 3 }],
+    "layout_swaps": [["headline", "pullquote"]],
+    "layout_placements": [{ "block_id": "headline", "x": 4, "y": 10, "w": 60, "h": 8 }],
+    "extra_blocks": [{ "id": "quote2", "type": "pullquote", "x": 5, "y": 74, "w": 40, "text": "新增引语" }],
+    "remove_blocks": ["body"]
   }
 }
 

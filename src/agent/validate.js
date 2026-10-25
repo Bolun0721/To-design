@@ -12,6 +12,7 @@ import {
   VARIANT_IDS,
   buildLayout,
 } from '../config/presets.js'
+import { normalizeDesignLayout } from '../config/designLayout.js'
 import { clampText, charLen, chineseDate } from '../lib/format.js'
 
 const SLOTS = [
@@ -221,6 +222,7 @@ export function normalizeSchemes(
         image_placeholders: placeholders,
       },
       design_rationale: rationale || variantDef.tagline,
+      ...(designMode ? { design_layout: normalizeDesignLayout(raw, format) } : {}),
       layouts: {
         newspaper: buildLayout(variant, 'newspaper'),
         poster: buildLayout(variant, 'poster'),

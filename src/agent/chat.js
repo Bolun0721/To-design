@@ -11,6 +11,14 @@ import {
   VARIANTS,
   buildLayout,
 } from '../config/presets.js'
+import {
+  clampRect,
+  findNewOverlaps,
+  normalizeDesignLayout,
+  rectOf,
+  rememberDesignLayout,
+  swapLayoutSlots,
+} from '../config/designLayout.js'
 import { clampText, clamp, round, charLen } from '../lib/format.js'
 import { cleanText } from './validate.js'
 
@@ -49,6 +57,7 @@ export function buildChatSystemPrompt() {
 - content.headline ≤15 字；content.subhead ≤25 字；content.caption ≤30 字；content.caption_secondary ≤30 字；content.poster_note ≤30 字；content.pullquote ≤24 字
 - content.body_blocks：2–4 段，合计 120–220 字；只有用户要求重写正文时才提供
 - layout_moves：对当前格式的版块做小幅微调，dx / dy 为百分比点（-${MOVE_LIMITS.dx}..${MOVE_LIMITS.dx}），dw 为宽度的百分比点（-${MOVE_LIMITS.dw}..${MOVE_LIMITS.dw}）
+- layout_swaps：互换两个板块的完整占位矩形，例如 [["headline","pullquote"]]；用户要求「交换位置」时优先使用，不要用两段方向相反的 layout_moves
 
 # 硬规则
 
@@ -60,6 +69,7 @@ export function buildChatSystemPrompt() {
 6. 尽量只改 1–3 个字段。reply 用中文，≤40 字，说清楚改了什么。
 7. 保持编辑设计纪律：一个强调色、层级清楚、不堆装饰；不要引入渐变、圆角卡片、emoji。
 8. 如果用户消息包含「【引用板块：名称（block_id）】」，优先只改该板块对应的 content 或 layout_moves，不要动其他板块。
+9. 交换两个板块时使用 layout_swaps（原子交换占位矩形）；不要用两个相对位移模拟，否则大板块会在中途重叠。
 
 # 输出结构
 
@@ -78,7 +88,8 @@ export function buildChatSystemPrompt() {
     },
     "layout_moves": [
       { "block_id": "headline", "dx": 0, "dy": 2 }
-    ]
+    ],
+    "layout_swaps": [["headline", "pullquote"]]
   }
 }
 
@@ -243,10 +254,94 @@ export function applyChatPatch(
     }
   }
 
+  let layout = next.layouts[format]
+  const originalRects = new Map(layout.map((block) => [block.id, rectOf(block)]))
+  const originalGeometry = new Map(
+    layout.map((block) => [block.id, { x: block.x, y: block.y, w: block.w, h: block.h }]),
+  )
+  const movedIds = new Set()
+  let layoutTouched = false
+  let warning = ''
+  let design = null
+  if (designMode && scheme.design_layout?.format === format) {
+    design = {
+      ...scheme.design_layout,
+      overrides: [...(scheme.design_layout.overrides || [])],
+      extra_blocks: [...(scheme.design_layout.extra_blocks || [])],
+      removed: [...(scheme.design_layout.removed || [])],
+    }
+  }
+  const ensureDesign = () => {
+    if (!design) design = { format, overrides: [], extra_blocks: [], removed: [] }
+    return design
+  }
+
+  /* 互换：原子交换完整占位矩形，不用两个相对位移 */
+  if (Array.isArray(patch.layout_swaps)) {
+    for (const pair of patch.layout_swaps.slice(0, 3)) {
+      if (!Array.isArray(pair) || pair.length < 2) continue
+      if (swapLayoutSlots(layout, String(pair[0]), String(pair[1]))) {
+        changed = true
+        layoutTouched = true
+      }
+    }
+  }
+
+  /* 设计模式：绝对坐标落点 */
+  if (designMode && Array.isArray(patch.layout_placements)) {
+    for (const placement of patch.layout_placements.slice(0, 8)) {
+      if (!placement || typeof placement !== 'object') continue
+      const block = layout.find((item) => item.id === placement.block_id)
+      if (!block) continue
+      const rect = clampRect(placement, block)
+      const moved =
+        rect.x !== block.x ||
+        rect.y !== block.y ||
+        rect.w !== block.w ||
+        (rect.h != null && rect.h !== block.h)
+      if (!moved) continue
+      Object.assign(block, rect)
+      movedIds.add(block.id)
+      changed = true
+      layoutTouched = true
+    }
+  }
+
+  /* 设计模式：增删板块 */
+  if (designMode && Array.isArray(patch.extra_blocks)) {
+    const normalized = normalizeDesignLayout({ extra_blocks: patch.extra_blocks }, format)
+    const ids = new Set(layout.map((block) => block.id))
+    for (const extra of normalized?.extra_blocks || []) {
+      if (ids.has(extra.id)) continue
+      const rect = clampRect(extra, { x: 0, y: 0, w: 40 })
+      layout.push({ ...extra, ...rect, custom: true })
+      ensureDesign().extra_blocks.push(extra)
+      ids.add(extra.id)
+      changed = true
+      layoutTouched = true
+    }
+  }
+
+  if (designMode && Array.isArray(patch.remove_blocks)) {
+    const remove = new Set(patch.remove_blocks.map((id) => String(id)))
+    if (remove.size) {
+      const kept = layout.filter((block) => !remove.has(block.id))
+      if (kept.length !== layout.length) {
+        layout = kept
+        next.layouts[format] = layout
+        const target = ensureDesign()
+        target.removed = [...new Set([...target.removed, ...remove])]
+        target.extra_blocks = target.extra_blocks.filter((block) => !remove.has(block.id))
+        changed = true
+        layoutTouched = true
+      }
+    }
+  }
+
   if (Array.isArray(patch.layout_moves) && patch.layout_moves.length) {
     for (const move of patch.layout_moves.slice(0, designMode ? 8 : 6)) {
       if (!move || typeof move !== 'object') continue
-      const block = next.layouts[format].find((item) => item.id === move.block_id)
+      const block = layout.find((item) => item.id === move.block_id)
       if (!block) continue
       const dx = clamp(Number(move.dx) || 0, -moveLimits.dx, moveLimits.dx)
       const dy = clamp(Number(move.dy) || 0, -moveLimits.dy, moveLimits.dy)
@@ -259,9 +354,39 @@ export function applyChatPatch(
       block.x = round(nextX, 1)
       block.y = round(nextY, 1)
       block.w = round(nextWidth, 1)
+      movedIds.add(block.id)
       changed = true
+      layoutTouched = true
     }
   }
 
-  return { scheme: changed ? next : scheme, changed }
+  /* 新产生的重叠回退：保留模板里原本就有意的叠压，只拒绝移动造成的冲突 */
+  if (movedIds.size) {
+    const hits = findNewOverlaps(layout, [...movedIds], originalRects)
+    if (hits.length) {
+      const bad = new Set(hits.map(([id]) => id))
+      for (const id of bad) {
+        const block = layout.find((item) => item.id === id)
+        const original = originalGeometry.get(id)
+        if (!block || !original) continue
+        block.x = original.x
+        block.y = original.y
+        block.w = original.w
+        if (original.h != null) block.h = original.h
+        else delete block.h
+        movedIds.delete(id)
+      }
+      warning = '检测到板块重叠，已回退冲突的移动。'
+    }
+  }
+
+  if (designMode && (layoutTouched || design)) {
+    next.design_layout = rememberDesignLayout(next, format)
+  }
+
+  return {
+    scheme: changed ? next : scheme,
+    changed,
+    ...(warning ? { warning } : {}),
+  }
 }

@@ -139,6 +139,12 @@ result.stylePackCycle = await evaluate(`Boolean(document.querySelector('.pack-cy
 result.bodyB = await evaluate(
   `document.querySelectorAll('.scheme-card')[1]?.querySelector('.paper .body')?.innerText.trim() || ''`,
 )
+result.extraText = await evaluate(
+  `document.querySelectorAll('.scheme-card')[0]?.querySelector('[data-block-id="quote2"] .quote-text')?.innerText || ''`,
+)
+result.extraLeft = await evaluate(
+  `document.querySelectorAll('.scheme-card')[0]?.querySelector('[data-block-id="quote2"]')?.style.left || ''`,
+)
 
 await fs.mkdir(OUT, { recursive: true })
 const shot = await call('Page.captureScreenshot', { format: 'png' })
@@ -169,6 +175,8 @@ if (!result.variants.some((text) => text.includes('卡带未来'))) throw new Er
 if (!result.designBar) throw new Error('设计模式画廊没有提示条')
 if (result.stylePackCycle) throw new Error('设计模式仍然显示风格包切换')
 if (result.bodyB) throw new Error('设计模式空正文没有被保留')
+if (!result.extraText.includes('第二个引语')) throw new Error('设计模式新增板块没有渲染')
+if (result.extraLeft !== '5%') throw new Error(`新增板块自定义坐标异常：${result.extraLeft}`)
 if (result.standardMode !== 'standard' || !result.standardPack) throw new Error('切回标准模式后风格包没有恢复')
 if (result.storedStandard !== 'standard') throw new Error('标准模式没有持久化')
 if (result.exceptions) throw new Error('页面存在未捕获异常')
