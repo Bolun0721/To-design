@@ -198,6 +198,28 @@ assert.equal(
   reAddedFooter.scheme.layouts.newspaper.find((b) => b.id === 'footer2').type,
   'footer',
 )
+const footerAlias = applyChatPatch(
+  designScheme,
+  'newspaper',
+  {
+    extra_blocks: [
+      {
+        id: 'footer3',
+        type: 'note',
+        x: 5,
+        y: 88,
+        w: 50,
+        h: 3,
+        text: '模型把页脚误报成 note',
+      },
+    ],
+  },
+  { mode: 'design' },
+)
+assert.equal(
+  footerAlias.scheme.layouts.newspaper.find((b) => b.id === 'footer3').type,
+  'footer',
+)
 console.log('✓ footer can be re-added after the last one is deleted')
 
 console.log('\nall chat patch tests passed')

@@ -111,13 +111,18 @@ export function normalizeDesignLayout(raw, format) {
     ? source.extra_blocks
         .filter((item) => item && typeof item === 'object')
         .map((item, index) => {
-          const type = EXTRA_BLOCK_TYPES.includes(item.type) ? item.type : null
+          const id = cleanId(item.id) || `extra-${index + 1}`
+          const inferred = EXTRA_BLOCK_TYPES.find((type) => id.startsWith(type))
+          let type = EXTRA_BLOCK_TYPES.includes(item.type) ? item.type : null
+          if (!type && inferred) type = inferred
+          // 模型有时把 footer 写成 note；用唯一 id 的语义兜底，避免渲染成海报注记。
+          if (type === 'note' && inferred && inferred !== 'note') type = inferred
           const text = String(item.text || '')
             .replace(/<[^>]*>/g, '')
             .trim()
             .slice(0, 160)
           return {
-            id: cleanId(item.id) || `extra-${index + 1}`,
+            id,
             type,
             text,
             x: Number(item.x),
