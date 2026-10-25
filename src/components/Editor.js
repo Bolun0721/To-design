@@ -13,6 +13,7 @@ export function Editor({
   photo,
   photo2,
   theme,
+  freeMode = false,
   sandboxRef,
   disclaimer,
   onSelect,
@@ -81,6 +82,7 @@ export function Editor({
               photo2=${photo2}
               scale=${scale}
               theme=${theme}
+              freeMode=${freeMode}
               disclaimer=${disclaimer}
               onBlockCommit=${onBlockCommit}
               onEditText=${onEditText}

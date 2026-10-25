@@ -1,0 +1,14 @@
+{
+  "version": "v0.10.0",
+  "date": "2026-10-25",
+  "gitTag": "v0.10.0",
+  "description": "自由模式：无照片时生成简单 SVG 线条图案，符号库兜底，有照片时优先使用照片",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "artPrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

@@ -25,9 +25,11 @@ export function InputRail({
   onRemovePhoto,
   error,
   onDismissError,
+  mode = 'standard',
 }) {
   const fileRef = useRef(null)
   const [dragOver, setDragOver] = useState(false)
+  const freeMode = mode === 'free'
   const [showKey, setShowKey] = useState(false)
 
   const provider = PROVIDERS.find((p) => p.id === settings.provider) || PROVIDERS[0]
@@ -77,8 +79,10 @@ export function InputRail({
             : html`
                 <div class="dropzone-empty">
                   <span class="dropzone-plus">＋</span>
-                  <span>拖入照片，或点击上传</span>
-                  <span class="dropzone-hint">JPG / PNG / WebP · 最大 15MB</span>
+                  <span>${freeMode ? '自由模式可不提供照片' : '拖入照片，或点击上传'}</span>
+                  <span class="dropzone-hint">
+                    ${freeMode ? '无图时由模型生成 SVG 线条图案' : 'JPG / PNG / WebP · 最大 15MB'}
+                  </span>
                 </div>
               `}
           <input

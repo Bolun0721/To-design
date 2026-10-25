@@ -149,7 +149,7 @@ export function buildUserPrompt({
   vision,
   mode = 'standard',
 }) {
-  const designMode = mode === 'design'
+  const designMode = mode === 'design' || mode === 'free'
   const photo = photoMeta
     ? `用户上传了 1 张照片（${photoMeta.width} × ${photoMeta.height}px，文件名「${photoMeta.name}」，画幅比例 ${(
         photoMeta.width / photoMeta.height

@@ -669,6 +669,39 @@
   cursor: not-allowed;
 }
 
+.free-mode-warning {
+  font-size: 10px;
+  line-height: 1.8;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.free-mode-warning p {
+  margin: 0 0 10px;
+}
+
+.free-mode-warning strong {
+  color: var(--ink);
+}
+
+.free-mode-warning-note {
+  padding: 8px 10px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-soft, rgba(200, 16, 46, 0.06));
+  color: var(--ink);
+}
+
+.free-mode-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.free-mode-actions .btn {
+  min-width: 92px;
+}
+
 .slot-btn {
   border: 1px solid var(--line);
   background: transparent;

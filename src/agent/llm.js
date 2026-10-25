@@ -216,6 +216,19 @@ export async function requestSchemes({
   })
 }
 
+/** 自由模式图案：一次返回 3 个 SVG，失败由前端符号库兜底 */
+export async function requestArtworks({ apiKey, settings, system, user, signal }) {
+  return postChat({
+    apiKey,
+    settings,
+    system,
+    user,
+    signal,
+    temperature: 0.6,
+    maxTokens: 6000,
+  })
+}
+
 /** 多图补充图注：只返回 JSON captions */
 export async function requestCaptions({ apiKey, settings, system, user, imageDataUrls = [], signal }) {
   const images = imageDataUrls.filter(Boolean)

@@ -142,6 +142,7 @@ export function IframePaper({
   photo2,
   scale,
   theme,
+  freeMode = false,
   disclaimer,
   onBlockCommit,
   onEditText,
@@ -164,11 +165,11 @@ export function IframePaper({
       {
         source: 'fpl-parent',
         type: 'render',
-        state: { scheme, format, photo, photo2, scale, theme, disclaimer, background },
+        state: { scheme, format, photo, photo2, scale, theme, freeMode, disclaimer, background },
       },
       '*',
     )
-  }, [scheme, format, photo, photo2, scale, theme, disclaimer, background])
+  }, [scheme, format, photo, photo2, scale, theme, freeMode, disclaimer, background])
 
   useEffect(() => {
     if (ready) sendRender()

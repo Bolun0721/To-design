@@ -7,10 +7,17 @@ import { Intro } from './components/Intro.js'
 import { Gallery } from './components/Gallery.js'
 import { Editor } from './components/Editor.js'
 import { Inspector } from './components/Inspector.js'
-import { JsonModal, PromptModal, SkillModal } from './components/Modals.js'
+import { JsonModal, Modal, PromptModal, SkillModal } from './components/Modals.js'
 import { DraftsModal } from './components/DraftsModal.js'
 import { buildDemoPayload } from './agent/demoData.js'
 import { buildCaptionSystemPrompt, buildCaptionUserPrompt } from './agent/captions.js'
+import { buildArtSystemPrompt, buildArtUserPrompt } from './agent/artPrompt.js'
+import {
+  attachFallbackArtworks,
+  buildFallbackArtwork,
+  normalizeModelArtworks,
+  rasterizeArtworks,
+} from './agent/artwork.js'
 import {
   buildDesignChatSystemPrompt,
   buildDesignSystemPrompt,
@@ -21,6 +28,7 @@ import { cleanText, normalizeSchemes, rebuildLayout } from './agent/validate.js'
 import {
   PROVIDERS,
   defaultSettings,
+  requestArtworks,
   requestCaptions,
   requestEdit,
   requestSchemes,
@@ -77,7 +85,9 @@ function loadKey() {
 
 function loadMode() {
   try {
-    return localStorage.getItem(LS_MODE) === 'design' ? 'design' : 'standard'
+    const saved = localStorage.getItem(LS_MODE)
+    if (saved === 'design' || saved === 'free') return saved
+    return 'standard'
   } catch {
     return 'standard'
   }
@@ -106,6 +116,7 @@ export function App() {
   const [exporting, setExporting] = useState(false)
   const [theme, setTheme] = useState(loadTheme)
   const [mode, setMode] = useState(loadMode)
+  const [modeWarning, setModeWarning] = useState(false)
   const [chats, setChats] = useState({})
   const [stylePack, setStylePack] = useState('classic')
   const [chatBusy, setChatBusy] = useState(false)
@@ -143,7 +154,8 @@ export function App() {
     }
   }, [])
 
-  const designMode = mode === 'design'
+  const freeMode = mode === 'free'
+  const designMode = mode === 'design' || freeMode
   const systemPrompt = useMemo(
     () => (designMode ? buildDesignSystemPrompt() : buildSystemPrompt()),
     [designMode],
@@ -588,9 +600,55 @@ export function App() {
         signal: controller.signal,
       })
       const normalized = normalizeSchemes(result.json, { date, format, mode })
-      applyResult(normalized)
+      let finalSchemes = normalized.schemes
+      let finalWarnings = normalized.warnings || []
+      let artFallback = false
+      if (freeMode) {
+        finalSchemes = attachFallbackArtworks(finalSchemes, description)
+        if (!photo) {
+          setBusyLabel('正在生成自由图案…')
+          try {
+            const artResult = await requestArtworks({
+              apiKey,
+              settings,
+              system: buildArtSystemPrompt(),
+              user: buildArtUserPrompt({
+                schemes: finalSchemes,
+                formatLabel: FORMATS[format].label,
+              }),
+              signal: controller.signal,
+            })
+            const merged = normalizeModelArtworks(artResult.json, finalSchemes, description)
+            finalSchemes = merged.schemes
+            if (merged.warnings) {
+              artFallback = true
+              finalWarnings = [
+                ...finalWarnings,
+                `${merged.warnings} 套图案未通过校验，已使用符号库兜底。`,
+              ]
+            }
+          } catch (artErr) {
+            artFallback = true
+            finalWarnings = [
+              ...finalWarnings,
+              `图案生成未完成，已使用符号库兜底：${artErr.message || '模型没有返回可用 SVG'}`,
+            ]
+          }
+        }
+      }
+      if (freeMode) {
+        setBusyLabel('正在准备 SVG 图案…')
+        finalSchemes = await rasterizeArtworks(finalSchemes)
+      }
+      applyResult({ ...normalized, schemes: finalSchemes, warnings: finalWarnings })
       setDemoMode(false)
-      showToast('三套头版方案已生成')
+      showToast(
+        freeMode && !photo
+          ? artFallback
+            ? '三套方案已生成，部分图案使用了兜底'
+            : '三套自由方案与 SVG 图案已生成'
+          : '三套头版方案已生成',
+      )
     } catch (err) {
       setError(
         err.name === 'AbortError'
@@ -603,7 +661,7 @@ export function App() {
       setBusy(false)
       setBusyLabel('')
     }
-  }, [apiKey, applyResult, busy, description, designMode, format, mode, photo, settings, showToast])
+  }, [apiKey, applyResult, busy, description, designMode, format, freeMode, mode, photo, settings, showToast])
 
   const relayoutAll = useCallback(
     (hasSub) => {
@@ -1048,8 +1106,12 @@ export function App() {
 
   const changeMode = useCallback(
     (next) => {
-      if (next !== 'design' && next !== 'standard') return
+      if (!['standard', 'design', 'free'].includes(next)) return
       if (next === mode) return
+      if (next === 'free') {
+        setModeWarning(true)
+        return
+      }
       setMode(next)
       setChatReference(null)
       showToast(
@@ -1060,6 +1122,22 @@ export function App() {
     },
     [mode, showToast],
   )
+
+  const confirmFreeMode = useCallback(() => {
+    setMode('free')
+    setModeWarning(false)
+    setChatReference(null)
+    const withFallback = schemes.map((scheme) =>
+      scheme.artwork?.dataUrl
+        ? scheme
+        : { ...scheme, artwork: buildFallbackArtwork(scheme, description) },
+    )
+    setSchemes(withFallback)
+    rasterizeArtworks(withFallback)
+      .then((next) => setSchemes(next))
+      .catch(() => {})
+    showToast('自由模式：无图时由模型生成 SVG 线条图案')
+  }, [description, schemes, showToast])
 
   const modelLabel = `${provider.name} · ${settings.model}`
 
@@ -1081,8 +1159,41 @@ export function App() {
         onOpenPrompt=${() => setModal('prompt')}
       />
 
+      ${modeWarning &&
+      html`
+        <${Modal}
+          title="自由模式"
+          subtitle="推荐使用支持 SVG / 图像生成的结构化模型"
+          narrow=${true}
+          onClose=${() => setModeWarning(false)}
+        >
+          <div class="free-mode-warning">
+            <p>
+              自由模式会在<strong>没有照片</strong>时，由模型生成简单的 SVG
+              线条图案；有照片时仍直接使用照片。
+            </p>
+            <p>
+              当前版本生成 SVG 而不是位图。纯生图模型通常返回图片，无法直接走
+              JSON / SVG 管线；推荐选择擅长 SVG、代码与结构化输出的模型。
+            </p>
+            <p class="free-mode-warning-note">
+              图案只使用简单线条和象征符号；抽象名词会优先用荧光棒、樱花、鲸尾等符号表达。
+            </p>
+            <div class="free-mode-actions">
+              <button class="btn" type="button" onClick=${() => setModeWarning(false)}>
+                取消
+              </button>
+              <button class="btn accent" type="button" onClick=${confirmFreeMode}>
+                继续使用
+              </button>
+            </div>
+          </div>
+        </${Modal}>
+      `}
+
       <div class=${`workspace ${view === 'editor' ? 'with-inspector' : ''}`}>
         <${InputRail}
+          mode=${mode}
           photo=${photo}
           description=${description}
           setDescription=${setDescription}
@@ -1143,6 +1254,7 @@ export function App() {
               photo=${photo}
               photo2=${photo2}
               theme=${theme}
+              freeMode=${freeMode}
               sandboxRef=${sandboxRef}
               disclaimer=${meta.disclaimer}
               onSelect=${(index) => {

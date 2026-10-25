@@ -80,7 +80,7 @@ export function normalizeSchemes(
   { date, format = 'newspaper', mode = 'standard' } = {},
 ) {
   const warnings = []
-  const designMode = mode === 'design'
+  const designMode = mode === 'design' || mode === 'free'
   const rawSchemes = Array.isArray(payload?.schemes) ? payload.schemes : []
   if (!rawSchemes.length) {
     throw new Error('模型返回中没有 schemes 数组。请重试，或检查模型是否支持 JSON 输出。')

@@ -147,7 +147,7 @@ export function applyChatPatch(
   { mode = 'standard', hasSub = false } = {},
 ) {
   if (!patch || typeof patch !== 'object') return { scheme, changed: false }
-  const designMode = mode === 'design'
+  const designMode = mode === 'design' || mode === 'free'
   const moveLimits = designMode ? { dx: 30, dy: 30, dw: 30 } : MOVE_LIMITS
 
   const next = {

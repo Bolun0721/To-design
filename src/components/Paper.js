@@ -52,6 +52,7 @@ export function Paper({
   interactive = false,
   paperRef = null,
   disclaimer = '创意报纸版式，非真实新闻',
+  freeMode = false,
   className = '',
   onBlockCommit = null,
   onEditText = null,
@@ -281,12 +282,25 @@ export function Paper({
   const renderImage = (treatment, slot = 'hero') => {
     const isSecondary = slot === 'secondary'
     const media = isSecondary ? photo2 : photo
-    const placeholder = !isSecondary
+    const artwork = freeMode && !isSecondary && !media ? scheme.artwork : null
+    const placeholder = !isSecondary && !media && !artwork
       ? (content.image_placeholders || []).find(
           (item) => String(item?.slot || '').toLowerCase() === 'hero',
         )
       : null
     if (isSecondary && !media) return null
+    if (artwork?.dataUrl) {
+      return html`
+        <figure class="hero hero-artwork">
+          <img
+            src=${artwork.dataUrl}
+            data-export-src=${artwork.pngDataUrl || ''}
+            alt=${artwork.alt || '自由模式线条图案'}
+            draggable=${false}
+          />
+        </figure>
+      `
+    }
     return html`
       <figure class=${`hero treat-${treatment} ${isSecondary ? 'hero-secondary' : ''}`}>
         ${media

@@ -200,6 +200,7 @@ function draw() {
         photo=${currentState.photo}
         photo2=${currentState.photo2}
         scale=${currentState.scale}
+        freeMode=${Boolean(currentState.freeMode)}
         interactive=${true}
         paperRef=${paperRef}
         disclaimer=${currentState.disclaimer}
@@ -236,8 +237,9 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
   const st = resolveStyle(currentState.scheme)
   const images = [...paper.querySelectorAll('.hero img')]
   const previousSrc = images.map((img) => img.getAttribute('src'))
+  const treatmentImages = images.filter((img) => !img.closest('.hero-artwork'))
   const treated = await Promise.all(
-    images.map((img) =>
+    treatmentImages.map((img) =>
       renderTreatedPhoto(
         { dataUrl: img.src },
         st.imageTreatment,
@@ -247,7 +249,7 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
     ),
   )
   await Promise.all(
-    images.map(async (img, index) => {
+    treatmentImages.map(async (img, index) => {
       if (treated[index] && treated[index] !== img.src) {
         img.src = treated[index]
         try {
@@ -256,6 +258,21 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
           /* ignore */
         }
       }
+    }),
+  )
+
+  // 预览用 SVG；导出时换父页面预先光栅化好的 PNG，避免 html2canvas 解码 SVG。
+  const artworkImages = images.filter((img) => img.closest('.hero-artwork'))
+  await Promise.all(
+    artworkImages.map(async (img) => {
+      const png = img.dataset.exportSrc
+      if (!png) return
+      img.src = png
+      await new Promise((resolve) => {
+        if (img.complete && img.naturalWidth) resolve()
+        else img.addEventListener('load', resolve, { once: true })
+        setTimeout(resolve, 1200)
+      })
     }),
   )
 

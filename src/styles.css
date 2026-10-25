@@ -2170,6 +2170,16 @@ body.is-block-dragging {
   letter-spacing: 0.08em;
 }
 
+.hero-artwork {
+  background: transparent;
+}
+
+.hero-artwork img {
+  object-fit: contain !important;
+  padding: 1.5%;
+  filter: none !important;
+}
+
 .hero-hint {
   font-size: 7.5px;
   letter-spacing: 0.06em;

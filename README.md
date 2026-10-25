@@ -22,7 +22,7 @@
 9. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
 10. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
 11. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）；
-12. 顶栏新增 **标准模板 / 设计模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包。
+12. 顶栏新增 **标准模板 / 设计模式 / 自由模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包；自由模式在无照片时生成 SVG 线条图案。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -130,16 +130,17 @@ Base URL：https://api.deepseek.com/v1
 
 顶栏新增模式下拉，默认「标准模板」，可切换「设计模式」：
 
-| | 标准模板 | 设计模式 |
-|---|---|---|
-| 提示词 | 固定 A/B/C 三种内容角度 | 设计总监提示词，按场景独立判断 |
-| 模板 | 风格包决定三套模板 | 模型从 9 套模板中自由选择 |
-| 配色 / 字体 | 跟风格包 | 模型从白名单中自由选择 |
-| 三套差异 | 前端强制模板 / 配色不重复 | 允许同模板 / 同配色，强调设计逻辑差异 |
-| 正文 | 2–4 段、至少 120 字 | 0–4 段，可以完全省略 |
-| 风格包 | 画廊顶部可切换 | 隐藏，不覆盖模型选择 |
-| 板块 | 模板固定，只能拖动 | 可增删板块、改绝对坐标、移出模板骨架 |
-| 对话 | 最小 patch、版式骨架不动 | 可换模板、增删板块、绝对坐标、互换占位矩形 |
+| | 标准模板 | 设计模式 | 自由模式 |
+|---|---|---|---|
+| 提示词 | 固定 A/B/C 三种内容角度 | 设计总监提示词，按场景独立判断 | 设计总监 + 自由图案提示词 |
+| 模板 | 风格包决定三套模板 | 模型从 9 套模板中自由选择 | 模型从 9 套模板中自由选择 |
+| 配色 / 字体 | 跟风格包 | 模型从白名单中自由选择 | 模型从白名单中自由选择 |
+| 三套差异 | 前端强制模板 / 配色不重复 | 允许同模板 / 同配色，强调设计逻辑差异 | 同设计模式 |
+| 正文 | 2–4 段、至少 120 字 | 0–4 段，可以完全省略 | 0–4 段，可以完全省略 |
+| 板块 | 模板固定，只能拖动 | 可增删板块、改绝对坐标、移出模板骨架 | 同设计模式 |
+| 图像 | 用户照片 / 占位 | 用户照片 / 占位 | **有照片用照片；无照片生成 SVG** |
+| 风格包 | 画廊顶部可切换 | 隐藏，不覆盖模型选择 | 隐藏 |
+| 对话 | 最小 patch、版式骨架不动 | 可换模板、增删板块、绝对坐标、互换占位矩形 | 同设计模式 |
 
 设计模式仍然保留技术边界：3 套、JSON Schema、模板 / 配色 / 字体白名单、无虚构图片或事实；坐标可以自定义，但必须留在纸张安全范围内。
 
@@ -161,6 +162,25 @@ Base URL：https://api.deepseek.com/v1
 - **重叠保护**：对话里的普通位移 / 绝对落点如果产生**新的**重叠，会回退冲突移动并提示；模板里原本有意的小报标题压图不会被误伤。
 
 > 之前的定位逻辑确实是左上角 x / y + 宽高；用两个相对位移模拟“互换”时，大板块会在中途穿过对方。现在交换用完整矩形，落点用绝对坐标，并加了新重叠回退。
+
+#### 自由模式：无图生成 SVG 图案
+
+顶栏第三个模式是「自由模式」，选择时先弹提示：
+
+> **推荐使用支持 SVG / 图像生成的结构化模型**
+
+确认后才切换；取消保持原模式。
+
+- **不需要参考图**：每套方案生成 1 个主视觉 SVG，仍保留 3 套 A/B/C 与 9 套模板结构；
+- **有照片就用照片**：上传照片后自由模式直接使用照片，不调用图案生成；移除照片后回到已生成的 SVG / 兜底图案；
+- **和设计模式一样自由**：模板、配色、字体、正文量、增删板块、绝对坐标、互换都保留；
+- **两阶段生成**：先写内容与版式，再单独生成 3 个图案；图案失败不影响文案，逐套回退；
+- **SVG 安全**：只允许 g / path / line / circle / ellipse / polyline / polygon / rect；禁止 script、foreignObject、image、text、filter、渐变和外链；单图 ≤12KB；
+- **颜色 token**：模型只写 `{{ink}}` / `{{accent}}` / `{{muted}}`，前端按当前模板配色替换，九套模板自动对应各自的线条色；
+- **象征图案**：偶像 → 荧光棒，日本 → 樱花，DeepSeek → 鲸尾，AI → 芯片，咖啡 → 杯子，城市 → 天际线，旅行 → 纸飞机，时间 → 表盘；模型 SVG 无效时用符号库拼兜底；
+- **导出**：预览用 SVG，导出前在父页面光栅化成 PNG，避免 html2canvas 1.4 解码 SVG 失败。
+
+![自由模式](docs/18-free-mode.png)
 
 ### 多图模式（所有模板）
 
@@ -188,6 +208,8 @@ Base URL：https://api.deepseek.com/v1
 
 - `src/agent/systemPrompt.js`：角色、能力边界、写作流程、反俗套清单、白名单、JSON Schema、自检项；
 - `src/agent/designPrompt.js`：设计模式的生成 / 对话提示词，允许自由选模板、配色、字体与信息量；
+- `src/agent/artPrompt.js`：自由模式的 SVG 图案提示词（符号表、线条约束、调色 token）；
+- `src/agent/artwork.js`：模型图案规范化、符号库兜底、导出 PNG 光栅化；
 - `src/agent/designSkill.js`：蒸馏自 `garden-skills/web-design-engineer` 的设计纪律（阅读顺序、网格留白、字体层级、色彩纪律、印刷工艺、反 AI 味），随系统提示词一起发送；
 - `src/agent/chat.js`：对话微调的专用提示词 + `patch` 白名单 / 应用 / 夹紧，与生成提示词分开；
 - 页面右上角 **「设计 SKILL」/「系统提示词」** 可以看到全文，方便调参。
@@ -234,11 +256,12 @@ Base URL：https://api.deepseek.com/v1
 - `systemPrompt.js`：生成提示词 / Schema / 白名单；
 - `chat.js`：对话微调提示词；
 - `designPrompt.js`：设计模式生成 + 对话提示词；
+- `artPrompt.js`：自由模式 SVG 图案提示词；
 - `designSkill.js`：设计 Skill；
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -317,6 +340,8 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
   └─ agent/
        ├─ systemPrompt.js       标准模式提示词 + Schema + 白名单
        ├─ designPrompt.js       设计模式提示词（生成 + 对话）
+       ├─ artPrompt.js          自由模式 SVG 图案提示词
+       ├─ artwork.js            图案规范化 / 符号兜底 / 导出光栅化
        ├─ designSkill.js        内置设计 Skill
        ├─ chat.js               对话微调提示词 + patch 校验 / 应用
        ├─ captions.js           多图补充图注提示词
@@ -325,10 +350,11 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        └─ demoData.js           离线示例稿件
   └─ config/presets.js          11 组配色、5 组字体、9 套版式 × 2 格式 + 双图拆分布局
   └─ config/designLayout.js     设计版式：增删板块、绝对坐标、完整矩形互换、重叠回退
+  └─ config/symbols.js          自由模式线条象征符号库
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
-  └─ lib/                       image / exportPaper / drafts（IndexedDB 草稿）
+  └─ lib/                       image / exportPaper / drafts / svg 安全与光栅化
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
-  └─ prompts/versions/          提示词版本快照（v0.5.0 / v0.6.0 / v0.7.0 / v0.8.0 / v0.9.0）
+  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.10.0）
 server.mjs                      静态服务 + /api/llm 极薄中继（零依赖）
 ```
 
@@ -360,13 +386,14 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── main.js
 │   ├── styles.css             # 工作室外壳 + 报纸模板样式
 │   ├── theme-chat.css         # 明暗主题 + 对话面板
-│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch / 图注
+│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch / 图注 / SVG
 │   ├── components/            # Paper / IframePaper / Inspector / ChatPanel / DraftsModal …
 │   ├── sandbox/entry.js       # iframe 内渲染 / 拖动 / 改字 / 选中卡片 / 导出
 │   ├── config/presets.js      # 11 组配色 / 5 组字体 / 9 套版式 / 单图与双图布局
 │   ├── config/designLayout.js # 设计模式自定义板块、坐标、互换与重叠保护
+│   ├── config/symbols.js      # 自由模式象征图案库
 │   ├── config/stylePacks.js   # 3 组风格包与包切换
-│   └── lib/                   # image / exportPaper / drafts（IndexedDB 草稿）
+│   └── lib/                   # image / exportPaper / drafts / svg 安全层
 ├── prompts/versions/          # 提示词版本快照与 manifest
 ├── public/
 │   ├── demo/coffee.jpg        # 程序化生成的示例照片（主图）
@@ -378,6 +405,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── make_demo_photo_2.py   # 生成示例子图（Pillow）
 │   ├── test-validate.mjs      # 校验层单测（含双图布局 / 风格包）
 │   ├── test-chat.mjs          # 对话 patch 单测
+│   ├── test-free.mjs          # 自由模式 SVG 安全 / 符号兜底单测
 │   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
 │   ├── export-matrix.mjs      # 经典 3 方案 × 2 格式 × 2 主题 导出矩阵
 │   ├── mock-llm.mjs           # 本地 mock 模型（生成 + 对话 + 补充图注）
@@ -387,6 +415,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── cdp-style-export.mjs   # 9 模板 × 报纸/海报导出 18 例（全部双图）
 │   ├── cdp-generate.mjs       # 真实点击生成的端到端测试
 │   ├── cdp-design.mjs         # 设计模式下拉 / 设计提示词 / 自由模板生成
+│   ├── cdp-free.mjs           # 自由模式提示 / SVG 图案 / 照片优先 / 导出
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
 │   ├── cdp-multi.mjs          # 子图增删 / 无占位 / 补充图注 / 单图导出
@@ -418,6 +447,7 @@ node scripts/cdp-styles.mjs
 node scripts/cdp-style-export.mjs
 node scripts/cdp-generate.mjs
 node scripts/cdp-design.mjs
+node scripts/cdp-free.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
 node scripts/cdp-multi.mjs
@@ -439,12 +469,13 @@ node scripts/export-matrix.mjs
 - 九套模板 × 报纸/海报（双图）：**18/18 导出通过**，0 未捕获异常；页脚、斜线、彩条、网格、海报注记都进入 PNG；
 - 多图自检：2 图 → 移除子图后回到单图且**无占位块** → 单图导出 → 重新上传 → **补充图注**（主图 / 子图各一条）并重排，0 异常；
 - 设计模式自检：顶栏下拉切到设计模式 → 提示词弹窗显示设计总监版 → mock 返回包豪斯 / 瑞士 / 卡带三套不同模板 → 画廊隐藏风格包 → 正文可空 → 切回标准模式恢复风格包，0 异常；
+- 自由模式自检：顶栏选自由模式先弹「推荐使用支持 SVG / 图像生成的结构化模型」；取消保持标准、确认后持久化；无照片生成 3 张 SVG 线条图案、无占位；打开画布后 SVG 正常、导出 1588×2246 PNG；上传照片后 3 套改为照片、不显示 SVG，0 异常；
 - 设计版式自检：mock 方案 A 新增引语板块 `quote2`（左上角 5% / 82%）并覆盖主标题坐标；方案 C 新增 `footer2` 页脚并与原页脚显示为「页脚 1 / 页脚 2」，页脚文字实际渲染；单元测试覆盖新增板块、绝对坐标、完整矩形互换与“新重叠回退”；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 经典导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
-> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
+> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，`cdp-free` 会调用 mock 生成 3 张 SVG，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
 > `check-css.mjs` 会拦住 `color-mix()` / `color()` / `oklch()` 等 html2canvas 无法解析的写法——这正是上次导出失败的根因。
 
@@ -465,6 +496,9 @@ node scripts/export-matrix.mjs
 - **多图范围**：九套模板都支持「主图 + 子图」（最多 2 张）；更多图需要在布局层继续扩展；
 - **子图删除即回收**：移除后回到单图全宽版式，不保留占位块；主图图注与子图图注分别保存；
 - **海报注记**：`poster_note` 是短装饰文案，不是正文；模型可能输出英文标签或氛围句，均可在画布上双击修改；
+- **自由模式仍是 SVG 线条**：每套 1 个主视觉；抽象词使用符号库/象征图案，不生成写实插画；模型 SVG 失败会用符号库兜底；
+- **纯生图模型未接入**：当前 BYOK 是 chat/completions + 结构化 JSON；DALL·E / Flux / SD 需要单独的 provider 与图片存储，自由模式提示文案已说明这一点；
+- **自由模式有照片就用照片**：上传照片后不会同时显示生成的 SVG；移除照片才回到 SVG/兜底图案；
 - **设计模式不是无限画布**：仍然只有 9 套基础模板、3 套方案和固定白名单；但支持增删文字板块、绝对坐标和互换。坐标必须落在纸张百分比范围内，且不能新增图片 / scrim / 自定义 HTML；
 - **同类型编号是前端行为**：模型只负责给唯一 `id`，数字由渲染层按类型出现顺序生成；删除其中一个后，剩余板块会重新编号；
 - **自定义版式只作用于当前格式**：生成报纸时写的坐标不会自动变成海报坐标；切到另一格式看到的是模板默认版式；
@@ -476,7 +510,7 @@ node scripts/export-matrix.mjs
 - **草稿只在本机**：IndexedDB 按浏览器 / 设备隔离，没有账号同步；清理浏览器数据会删除草稿；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）、iframe 沙箱、九套模板 / 风格包，以及本轮的双图增删 / 补充图注 / 海报注记已完成；提示词快照在 `prompts/versions/`。
+下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）、iframe 沙箱、九套模板 / 风格包、双图增删 / 补充图注 / 海报注记、设计模式、自定义板块，以及自由模式 SVG 图案已完成；提示词快照在 `prompts/versions/`。
 
 ---
 
