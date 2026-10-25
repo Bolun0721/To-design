@@ -11,6 +11,10 @@ import { JsonModal, PromptModal, SkillModal } from './components/Modals.js'
 import { DraftsModal } from './components/DraftsModal.js'
 import { buildDemoPayload } from './agent/demoData.js'
 import { buildCaptionSystemPrompt, buildCaptionUserPrompt } from './agent/captions.js'
+import {
+  buildDesignChatSystemPrompt,
+  buildDesignSystemPrompt,
+} from './agent/designPrompt.js'
 import { buildSystemPrompt, buildUserPrompt } from './agent/systemPrompt.js'
 import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './agent/chat.js'
 import { cleanText, normalizeSchemes, rebuildLayout } from './agent/validate.js'
@@ -41,6 +45,7 @@ const html = htm.bind(h)
 
 const LS_SETTINGS = 'fpl.settings.v1'
 const LS_THEME = 'fpl.theme.v1'
+const LS_MODE = 'fpl.mode.v1'
 const SS_KEY = 'fpl.apikey.v1'
 
 function loadSettings() {
@@ -69,6 +74,14 @@ function loadKey() {
   }
 }
 
+function loadMode() {
+  try {
+    return localStorage.getItem(LS_MODE) === 'design' ? 'design' : 'standard'
+  } catch {
+    return 'standard'
+  }
+}
+
 export function App() {
   const [view, setView] = useState('intro')
   const [format, setFormat] = useState('newspaper')
@@ -91,6 +104,7 @@ export function App() {
   const [demoMode, setDemoMode] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [theme, setTheme] = useState(loadTheme)
+  const [mode, setMode] = useState(loadMode)
   const [chats, setChats] = useState({})
   const [stylePack, setStylePack] = useState('classic')
   const [chatBusy, setChatBusy] = useState(false)
@@ -128,10 +142,23 @@ export function App() {
     }
   }, [])
 
-  const systemPrompt = useMemo(() => buildSystemPrompt(), [])
+  const designMode = mode === 'design'
+  const systemPrompt = useMemo(
+    () => (designMode ? buildDesignSystemPrompt() : buildSystemPrompt()),
+    [designMode],
+  )
   const activeScheme = schemes[active] || null
   const provider = PROVIDERS.find((p) => p.id === settings.provider) || PROVIDERS[0]
   const keyReady = Boolean(apiKey.trim())
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_MODE, mode)
+    } catch {
+      /* ignore */
+    }
+    document.documentElement.dataset.mode = mode
+  }, [mode])
 
   useEffect(() => {
     try {
@@ -203,7 +230,15 @@ export function App() {
       setChatBusy(false)
       setChatReference(null)
       const hasSub = hasSubOverride ?? Boolean(photo2)
-      const packed = applyStylePack(result.schemes, stylePack, hasSub)
+      const packed = designMode
+        ? result.schemes.map((scheme) => ({
+            ...scheme,
+            layouts: {
+              newspaper: buildLayout(scheme.layout_variant, 'newspaper', hasSub),
+              poster: buildLayout(scheme.layout_variant, 'poster', hasSub),
+            },
+          }))
+        : applyStylePack(result.schemes, stylePack, hasSub)
       setSchemes(packed)
       setSummary(result.summary)
       setWarnings(result.warnings || [])
@@ -216,7 +251,7 @@ export function App() {
       setActive(idx >= 0 ? idx : 0)
       setView('gallery')
     },
-    [photo2, stylePack],
+    [designMode, photo2, stylePack],
   )
 
   const loadDemo = useCallback(
@@ -226,6 +261,7 @@ export function App() {
         const normalized = normalizeSchemes(buildDemoPayload({ date, format: fmt }), {
           date,
           format: fmt,
+          mode,
         })
         applyResult(normalized, photo ? Boolean(photo2) : true)
         setDemoMode(true)
@@ -247,7 +283,7 @@ export function App() {
         setError(`示例稿件载入失败：${err.message}`)
       }
     },
-    [applyResult, format, photo, photo2],
+    [applyResult, format, mode, photo, photo2],
   )
 
   const applyDraft = useCallback((draft) => {
@@ -536,20 +572,21 @@ export function App() {
       const result = await requestSchemes({
         apiKey,
         settings,
-        system: buildSystemPrompt({ date }),
+        system: designMode ? buildDesignSystemPrompt() : buildSystemPrompt({ date }),
         user: buildUserPrompt({
           description,
           photoMeta: photo,
           secondaryPhotoMeta: photo2,
           formatLabel: FORMATS[format].label,
           date,
+          mode,
           vision: Boolean(settings.vision && (photo || photo2)),
         }),
         photoDataUrl: photo?.dataUrl,
         photo2DataUrl: photo2?.dataUrl,
         signal: controller.signal,
       })
-      const normalized = normalizeSchemes(result.json, { date, format })
+      const normalized = normalizeSchemes(result.json, { date, format, mode })
       applyResult(normalized)
       setDemoMode(false)
       showToast('三套头版方案已生成')
@@ -565,7 +602,7 @@ export function App() {
       setBusy(false)
       setBusyLabel('')
     }
-  }, [apiKey, applyResult, busy, description, format, photo, settings, showToast])
+  }, [apiKey, applyResult, busy, description, designMode, format, mode, photo, settings, showToast])
 
   const relayoutAll = useCallback((hasSub) => {
     setSchemes((prev) =>
@@ -804,7 +841,7 @@ export function App() {
         const result = await requestEdit({
           apiKey,
           settings,
-          system: buildChatSystemPrompt(),
+          system: designMode ? buildDesignChatSystemPrompt() : buildChatSystemPrompt(),
           user: buildChatUserPrompt({ scheme, format, instruction, history }),
           signal: controller.signal,
         })
@@ -818,7 +855,10 @@ export function App() {
           }
         }
         const latest = schemesRef.current.find((item) => item.id === id) || scheme
-        const { scheme: nextScheme, changed } = applyChatPatch(latest, format, patch)
+        const { scheme: nextScheme, changed } = applyChatPatch(latest, format, patch, {
+          mode,
+          hasSub: Boolean(photo2),
+        })
         if (changed) {
           setChatUndo((prev) => ({
             ...prev,
@@ -849,7 +889,7 @@ export function App() {
         setChatBusy(false)
       }
     },
-    [activeScheme, apiKey, chatBusy, chats, format, settings, showToast],
+    [activeScheme, apiKey, chatBusy, chats, designMode, format, mode, photo2, settings, showToast],
   )
 
   const undoChat = useCallback(() => {
@@ -959,6 +999,21 @@ export function App() {
     showToast(`已换成 ${next.name}`)
   }, [photo2, stylePack, showToast])
 
+  const changeMode = useCallback(
+    (next) => {
+      if (next !== 'design' && next !== 'standard') return
+      if (next === mode) return
+      setMode(next)
+      setChatReference(null)
+      showToast(
+        next === 'design'
+          ? '设计模式：模型自由选择模板、配色与信息量'
+          : '标准模板模式：按风格包生成三套',
+      )
+    },
+    [mode, showToast],
+  )
+
   const modelLabel = `${provider.name} · ${settings.model}`
 
   return html`
@@ -969,6 +1024,8 @@ export function App() {
         modelLabel=${modelLabel}
         demo=${demoMode}
         theme=${theme}
+        mode=${mode}
+        onModeChange=${changeMode}
         draftCount=${draftCount}
         saveState=${saveState}
         onToggleTheme=${toggleTheme}
@@ -1019,6 +1076,7 @@ export function App() {
               photo2=${photo2}
               busy=${busy}
               stylePack=${stylePack}
+              mode=${mode}
               onCycleStylePack=${cycleStylePack}
               onSelect=${(index) => {
                 setActive(index)

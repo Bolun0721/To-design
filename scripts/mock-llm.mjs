@@ -42,6 +42,8 @@ const server = http.createServer((req, res) => {
 
     const user = body.messages?.find((m) => m.role === 'user')?.content
     const userText = Array.isArray(user) ? user.map((part) => part.text || '').join('\n') : String(user || '')
+    const system = body.messages?.find((m) => m.role === 'system')?.content
+    const systemText = Array.isArray(system) ? system.map((part) => part.text || '').join('\n') : String(system || '')
 
     let content
     if (userText.includes('主图和子图的图注')) {
@@ -63,6 +65,54 @@ const server = http.createServer((req, res) => {
         },
       })
       console.log('[mock-llm] edit request -> patch')
+    } else if (systemText.includes('这是设计模式，不是标准模板模式')) {
+      // 设计模式：故意使用三种不同模板，且允许某套没有正文
+      const designPayload = JSON.parse(JSON.stringify(payload))
+      designPayload.summary = 'MOCK 设计模式返回三套自由方案，推荐 A：几何切分最醒目。'
+      designPayload.schemes[0] = {
+        ...designPayload.schemes[0],
+        name: '自由 A',
+        layout_variant: 'bauhaus',
+        color_preset: 'bauhaus_primary',
+        font_pairing: 'grotesk',
+        style: { columns: 2, headline_scale: 'large', image_treatment: 'duotone' },
+        content: {
+          ...designPayload.schemes[0].content,
+          body_blocks: [{ type: 'paragraph', text: '设计模式允许用更短的正文，把视觉重心交给标题和图片。' }],
+          poster_note: 'BAUHAUS STUDY · 001',
+        },
+        design_rationale: '红黄蓝几何切分，适合展陈与社交分享。',
+      }
+      designPayload.schemes[1] = {
+        ...designPayload.schemes[1],
+        name: '自由 B',
+        layout_variant: 'swiss_style',
+        color_preset: 'swiss_red',
+        font_pairing: 'serif_sans',
+        style: { columns: 3, headline_scale: 'xlarge', image_treatment: 'original' },
+        content: {
+          ...designPayload.schemes[1].content,
+          body_blocks: [],
+          poster_note: 'SWISS GRID · 02',
+        },
+        design_rationale: '极简网格与粗标题，正文留白，适合画册。',
+      }
+      designPayload.schemes[2] = {
+        ...designPayload.schemes[2],
+        name: '自由 C',
+        layout_variant: 'cassette_futurism',
+        color_preset: 'cassette_dark',
+        font_pairing: 'terminal_mono',
+        style: { columns: 1, headline_scale: 'large', image_treatment: 'halftone_mono' },
+        content: {
+          ...designPayload.schemes[2].content,
+          body_blocks: [{ type: 'paragraph', text: '黑底荧光绿，用屏幕感处理一杯咖啡的日常。' }],
+          poster_note: 'SIDE A · 03:00',
+        },
+        design_rationale: '显像管界面与单栏窄版，适合夜间分享。',
+      }
+      content = JSON.stringify(designPayload)
+      console.log('[mock-llm] design request -> 3 free schemes')
     } else {
       content = JSON.stringify(payload)
       console.log('[mock-llm] generation request -> 3 schemes')

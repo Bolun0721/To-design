@@ -147,7 +147,9 @@ export function buildUserPrompt({
   formatLabel,
   date,
   vision,
+  mode = 'standard',
 }) {
+  const designMode = mode === 'design'
   const photo = photoMeta
     ? `用户上传了 1 张照片（${photoMeta.width} × ${photoMeta.height}px，文件名「${photoMeta.name}」，画幅比例 ${(
         photoMeta.width / photoMeta.height
@@ -174,7 +176,15 @@ ${photo}
 ${secondaryPhoto}
 
 【画面格式】
-${formatLabel}${formatLabel === '海报' ? '（海报只展示标题、副标题、主图、图注和 poster_note 装饰短句；正文仍要写，供切换到报纸模式时使用。海报留白较多，poster_note 要能撑住版面。）' : '（A4 报纸头版，正文会以多栏排版，请控制段落长度）'}
+${formatLabel}${
+    designMode
+      ? formatLabel === '海报'
+        ? '（设计模式：海报可以完全省略正文，用标题、图注和 poster_note 组织；如果正文为空，body_blocks 直接输出 []。留白也是设计的一部分。）'
+        : '（设计模式：正文可 0–4 段，按设计需要决定；不要为了填满版面写长文。）'
+      : formatLabel === '海报'
+        ? '（海报只展示标题、副标题、主图、图注和 poster_note 装饰短句；正文仍要写，供切换到报纸模式时使用。海报留白较多，poster_note 要能撑住版面。）'
+        : '（A4 报纸头版，正文会以多栏排版，请控制段落长度）'
+  }
 
 【当前日期】
 ${date}

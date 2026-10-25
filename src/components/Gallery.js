@@ -14,6 +14,7 @@ export function Gallery({
   photo,
   photo2,
   stylePack = 'classic',
+  mode = 'standard',
   onCycleStylePack,
   onSelect,
   onRegenerate,
@@ -21,6 +22,7 @@ export function Gallery({
 }) {
   const scale = format === 'poster' ? 0.3 : 0.275
   const pack = getStylePack(stylePack)
+  const designMode = mode === 'design'
 
   return html`
     <section class="gallery">
@@ -35,16 +37,33 @@ export function Gallery({
         </div>
       </header>
 
-      <div class="gallery-pack">
-        <span class="pack-kicker">风格包</span>
-        <strong class="pack-name">${pack.name}</strong>
-        <span class="pack-en">${pack.en}</span>
-        <span class="pack-tagline">${pack.tagline}</span>
-        <button class="pack-cycle" type="button" onClick=${onCycleStylePack} disabled=${busy || !schemes.length}>
-          换一组 →
-        </button>
-        <span class="pack-count">3 / 9 种</span>
-      </div>
+      ${designMode
+        ? html`
+            <div class="gallery-pack design-mode-bar">
+              <span class="pack-kicker">设计模式</span>
+              <strong class="pack-name">自由设计</strong>
+              <span class="pack-en">DESIGN MODE</span>
+              <span class="pack-tagline">模型自选模板、配色、字体与信息量；不套用风格包。</span>
+              <span class="pack-count">重新生成可探索新方案</span>
+            </div>
+          `
+        : html`
+            <div class="gallery-pack">
+              <span class="pack-kicker">风格包</span>
+              <strong class="pack-name">${pack.name}</strong>
+              <span class="pack-en">${pack.en}</span>
+              <span class="pack-tagline">${pack.tagline}</span>
+              <button
+                class="pack-cycle"
+                type="button"
+                onClick=${onCycleStylePack}
+                disabled=${busy || !schemes.length}
+              >
+                换一组 →
+              </button>
+              <span class="pack-count">3 / 9 种</span>
+            </div>
+          `}
 
       <div class="gallery-cards">
         ${schemes.map((scheme, index) => {
@@ -87,12 +106,17 @@ export function Gallery({
       </div>
 
       <div style="margin-top:24px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-        <button class="btn" onClick=${onRegenerate} disabled=${busy}>${busy ? '生成中…' : '重新生成三套'}</button>
-        <button class="btn" onClick=${onCycleStylePack} disabled=${busy || !schemes.length}>
-          再换三种风格 →
-        </button>
+        <button class="btn" onClick=${onRegenerate} disabled=${busy}>${busy ? '生成中…' : designMode ? '重新设计三套' : '重新生成三套'}</button>
+        ${!designMode &&
+        html`
+          <button class="btn" onClick=${onCycleStylePack} disabled=${busy || !schemes.length}>
+            再换三种风格 →
+          </button>
+        `}
         <span style="font-size:9px; color:var(--muted-2); letter-spacing:.08em">
-          换风格保留内容和稿子，只重排版式、配色与字体。
+          ${designMode
+            ? '设计模式会重新判断内容与场景，重新组织布局、信息量和视觉方向。'
+            : '换风格保留内容和稿子，只重排版式、配色与字体。'}
         </span>
       </div>
     </section>

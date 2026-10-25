@@ -74,8 +74,12 @@ function paragraphsOf(content) {
   return []
 }
 
-export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
+export function normalizeSchemes(
+  payload,
+  { date, format = 'newspaper', mode = 'standard' } = {},
+) {
   const warnings = []
+  const designMode = mode === 'design'
   const rawSchemes = Array.isArray(payload?.schemes) ? payload.schemes : []
   if (!rawSchemes.length) {
     throw new Error('模型返回中没有 schemes 数组。请重试，或检查模型是否支持 JSON 输出。')
@@ -98,7 +102,7 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
       warnings.push(`方案 ${slot.id} 的版式「${raw?.layout_variant ?? '空'}」不在白名单，已回退为 ${VARIANTS[slot.variant].name}。`)
       variant = slot.variant
     }
-    if (usedVariants.has(variant)) {
+    if (usedVariants.has(variant) && !designMode) {
       const next = firstUnused(VARIANT_IDS, usedVariants, slot.variant)
       warnings.push(`方案 ${slot.id} 的版式与其它方案重复，已替换为 ${VARIANTS[next].name}。`)
       variant = next
@@ -110,7 +114,7 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
       warnings.push(`方案 ${slot.id} 的配色「${raw?.color_preset ?? '空'}」不在白名单，已回退为 ${COLOR_PRESETS[slot.preset].name}。`)
       preset = slot.preset
     }
-    if (usedPresets.has(preset)) {
+    if (usedPresets.has(preset) && !designMode) {
       const next = firstUnused(COLOR_PRESET_IDS, usedPresets, slot.preset)
       warnings.push(`方案 ${slot.id} 的配色与其它方案重复，已替换为 ${COLOR_PRESETS[next].name}。`)
       preset = next
@@ -157,14 +161,17 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
       bodyBlocks = [...head, { type: 'paragraph', text: rest }]
       warnings.push(`方案 ${slot.id} 的正文超过 4 段，已合并。`)
     }
-    if (!bodyBlocks.length) {
+    if (!bodyBlocks.length && !designMode) {
       bodyBlocks = [{ type: 'paragraph', text: subhead || '这一期的头版，留给一个普通的下午。' }]
       warnings.push(`方案 ${slot.id} 缺少正文，已用副标题兜底。`)
     }
     const bodyChars = bodyBlocks.reduce((sum, b) => sum + charLen(b.text), 0)
-    if (bodyChars < 120) warnings.push(`方案 ${slot.id} 的正文只有 ${bodyChars} 字，偏短，版面会留白较多。`)
-    if (bodyChars > 260) {
-      let budget = 260
+    if (!designMode && bodyChars < 120) {
+      warnings.push(`方案 ${slot.id} 的正文只有 ${bodyChars} 字，偏短，版面会留白较多。`)
+    }
+    const bodyLimit = designMode ? 340 : 260
+    if (bodyChars > bodyLimit) {
+      let budget = bodyLimit
       bodyBlocks = bodyBlocks
         .map((b) => {
           if (budget <= 0) return null
@@ -173,11 +180,11 @@ export function normalizeSchemes(payload, { date, format = 'newspaper' } = {}) {
           return text ? { ...b, text } : null
         })
         .filter(Boolean)
-      warnings.push(`方案 ${slot.id} 的正文超过 260 字，已截断。`)
+      warnings.push(`方案 ${slot.id} 的正文超过 ${bodyLimit} 字，已截断。`)
     }
 
-    const name = clampText(cleanText(raw?.name), 8) || variantDef.name
-    const rationale = clampText(cleanText(raw?.design_rationale), 40)
+    const name = clampText(cleanText(raw?.name), designMode ? 10 : 8) || variantDef.name
+    const rationale = clampText(cleanText(raw?.design_rationale), designMode ? 50 : 40)
 
     const placeholders = Array.isArray(content.image_placeholders)
       ? content.image_placeholders

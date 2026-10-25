@@ -17,11 +17,12 @@
 4. 用户并排比较三套方案，选一套进入画布：版块可拖动、可缩放、双击改字，主色 / 栏数 / 字号 / 图片处理实时重排；
 5. 画布左下角提供 **20–100% 缩放条**与「适应」；单击板块出现选中框和加粗名称卡片，双击卡片可把该板块**引用到对话**；
 6. 编辑器画布在**同源 iframe 沙箱**中渲染，拖动 / 双击 / 导出都在沙箱内完成，父页面只通过 `postMessage` 同步状态；
-7. 经典大报的报纸版支持「主图 + 次图」双图位：右侧「图片槽位」上传第二张，或保留占位块；
+7. 九套模板都支持「主图 + 子图」双图位：右侧「图片槽位」添加 / 更换 / 移除子图，移除后回到单图且不留占位块；
 8. 右侧「对话微调」用一句话改这一版（标题放大、换配色、正文两栏、标题下移），模型返回最小 JSON patch，可撤销；
 9. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
 10. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
-11. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）。
+11. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）；
+12. 顶栏新增 **标准模板 / 设计模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -125,6 +126,28 @@ Base URL：https://api.deepseek.com/v1
 
 ![海报模式](docs/04-poster.png)
 
+### 标准模板 / 设计模式
+
+顶栏新增模式下拉，默认「标准模板」，可切换「设计模式」：
+
+| | 标准模板 | 设计模式 |
+|---|---|---|
+| 提示词 | 固定 A/B/C 三种内容角度 | 设计总监提示词，按场景独立判断 |
+| 模板 | 风格包决定三套模板 | 模型从 9 套模板中自由选择 |
+| 配色 / 字体 | 跟风格包 | 模型从白名单中自由选择 |
+| 三套差异 | 前端强制模板 / 配色不重复 | 允许同模板 / 同配色，强调设计逻辑差异 |
+| 正文 | 2–4 段、至少 120 字 | 0–4 段，可以完全省略 |
+| 风格包 | 画廊顶部可切换 | 隐藏，不覆盖模型选择 |
+| 对话 | 最小 patch、版式骨架不动 | 可换模板、可清空正文、位移范围更大 |
+
+设计模式仍然保留技术边界：3 套、JSON Schema、模板 / 配色 / 字体白名单、无虚构图片或事实；它放开的是**设计选择**，不是渲染器能力。
+
+设计提示词改编自《头版智造局_设计提示词.md》，按 demo 的实际 JSON 接口收敛了变量、模板能力和字段；生成时由模型自由选择 9 套模板中的任意一套，不再强制 A/B/C 对应固定风格。
+
+模式会写入 `localStorage`，刷新后保留；切换模式只影响下一次生成 / 对话，不强制改写当前三套稿子。
+
+![设计模式](docs/17-design-mode.png)
+
 ### 多图模式（所有模板）
 
 - **九套模板全部支持主图 + 子图**；`buildLayout(variant, format, hasSub)` 会把主图位拆成两张图，窄图位会自动改为上下叠放；
@@ -150,6 +173,7 @@ Base URL：https://api.deepseek.com/v1
 ## 内置提示词与设计 Skill
 
 - `src/agent/systemPrompt.js`：角色、能力边界、写作流程、反俗套清单、白名单、JSON Schema、自检项；
+- `src/agent/designPrompt.js`：设计模式的生成 / 对话提示词，允许自由选模板、配色、字体与信息量；
 - `src/agent/designSkill.js`：蒸馏自 `garden-skills/web-design-engineer` 的设计纪律（阅读顺序、网格留白、字体层级、色彩纪律、印刷工艺、反 AI 味），随系统提示词一起发送；
 - `src/agent/chat.js`：对话微调的专用提示词 + `patch` 白名单 / 应用 / 夹紧，与生成提示词分开；
 - 页面右上角 **「设计 SKILL」/「系统提示词」** 可以看到全文，方便调参。
@@ -187,7 +211,7 @@ Base URL：https://api.deepseek.com/v1
 }
 ```
 
-前端 `src/agent/validate.js` 做二次硬校验：3 套方案、版式 / 配色 / 字体白名单、三者互不重复、标题与正文字数、脚本 / HTML 清洗、颜色从 preset 派生、越界修复并在「生成摘要」中列出警告。
+前端 `src/agent/validate.js` 做二次硬校验：3 套方案、版式 / 配色 / 字体白名单、标准模式的模板 / 配色去重、标题与正文字数、脚本 / HTML 清洗、颜色从 preset 派生、越界修复并在「生成摘要」中列出警告。设计模式会跳过模板 / 配色去重和正文最低字数，保留空正文。
 
 ## Prompt 版本备份
 
@@ -195,11 +219,12 @@ Base URL：https://api.deepseek.com/v1
 
 - `systemPrompt.js`：生成提示词 / Schema / 白名单；
 - `chat.js`：对话微调提示词；
+- `designPrompt.js`：设计模式生成 + 对话提示词；
 - `designSkill.js`：设计 Skill；
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -276,7 +301,8 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        └─ components/Modals     Skill / Prompt / JSON 查看
   └─ sandbox/entry.js           iframe 内入口：渲染 Paper、拖动/改字、选中卡片、html2canvas 导出
   └─ agent/
-       ├─ systemPrompt.js       生成提示词 + Schema + 白名单
+       ├─ systemPrompt.js       标准模式提示词 + Schema + 白名单
+       ├─ designPrompt.js       设计模式提示词（生成 + 对话）
        ├─ designSkill.js        内置设计 Skill
        ├─ chat.js               对话微调提示词 + patch 校验 / 应用
        ├─ captions.js           多图补充图注提示词
@@ -287,7 +313,7 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
   └─ lib/                       image / exportPaper / drafts（IndexedDB 草稿）
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
-  └─ prompts/versions/          提示词版本快照（v0.5.0 / v0.6.0）
+  └─ prompts/versions/          提示词版本快照（v0.5.0 / v0.6.0 / v0.7.0）
 server.mjs                      静态服务 + /api/llm 极薄中继（零依赖）
 ```
 
@@ -344,6 +370,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── cdp-styles.mjs         # 3 组风格包轮换 + 六种新风格双图截图
 │   ├── cdp-style-export.mjs   # 9 模板 × 报纸/海报导出 18 例（全部双图）
 │   ├── cdp-generate.mjs       # 真实点击生成的端到端测试
+│   ├── cdp-design.mjs         # 设计模式下拉 / 设计提示词 / 自由模板生成
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
 │   ├── cdp-multi.mjs          # 子图增删 / 无占位 / 补充图注 / 单图导出
@@ -374,6 +401,7 @@ node scripts/cdp-sandbox.mjs
 node scripts/cdp-styles.mjs
 node scripts/cdp-style-export.mjs
 node scripts/cdp-generate.mjs
+node scripts/cdp-design.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
 node scripts/cdp-multi.mjs
@@ -394,11 +422,12 @@ node scripts/export-matrix.mjs
 - 风格包：经典三式 → 几何三式 → 系统三式 → 回到经典，三套内容摘要保持不变；六种新模板全部进入双图模式，0 异常；
 - 九套模板 × 报纸/海报（双图）：**18/18 导出通过**，0 未捕获异常；页脚、斜线、彩条、网格、海报注记都进入 PNG；
 - 多图自检：2 图 → 移除子图后回到单图且**无占位块** → 单图导出 → 重新上传 → **补充图注**（主图 / 子图各一条）并重排，0 异常；
+- 设计模式自检：顶栏下拉切到设计模式 → 提示词弹窗显示设计总监版 → mock 返回包豪斯 / 瑞士 / 卡带三套不同模板 → 画廊隐藏风格包 → 正文可空 → 切回标准模式恢复风格包，0 异常；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 经典导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
-> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
+> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
 > `check-css.mjs` 会拦住 `color-mix()` / `color()` / `oklch()` 等 html2canvas 无法解析的写法——这正是上次导出失败的根因。
 
@@ -419,6 +448,8 @@ node scripts/export-matrix.mjs
 - **多图范围**：九套模板都支持「主图 + 子图」（最多 2 张）；更多图需要在布局层继续扩展；
 - **子图删除即回收**：移除后回到单图全宽版式，不保留占位块；主图图注与子图图注分别保存；
 - **海报注记**：`poster_note` 是短装饰文案，不是正文；模型可能输出英文标签或氛围句，均可在画布上双击修改；
+- **设计模式不是无限画布**：仍然只有 9 套模板、3 套方案和固定白名单，不支持模型自定义坐标；设计自由限于模板、配色、字体、栏数、标题层级、图片处理、正文量和对话里的位移；
+- **切换模式不重写当前稿**：只影响下一次生成 / 对话；从设计模式切回标准模式后，需要重新生成或手动换风格包才会重新套用；
 - **风格包会重置微调**：在画廊换风格包会重排版式并恢复默认色 / 字体，之前手动拖过的位置不会保留；建议先选包再进画布；
 - **六种新风格是模板化演绎**：按提示词提炼几何、配色、字体和装饰，不是历史原作的精确复刻；
 - **iframe 是同源隔离**：用于 CSS / DOM / 选择隔离，不宣称是安全沙箱；跨域嵌入或多实例需要额外 `sandbox` 属性与消息白名单；

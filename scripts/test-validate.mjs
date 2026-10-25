@@ -39,6 +39,19 @@ assert.equal(
   false,
 )
 
+const freePayload = JSON.parse(JSON.stringify(demo))
+freePayload.schemes[1].layout_variant = 'classic_broadsheet'
+freePayload.schemes[1].color_preset = 'classic_serious'
+freePayload.schemes[1].content.body_blocks = []
+const designed = normalizeSchemes(freePayload, { date, format: 'newspaper', mode: 'design' })
+assert.equal(designed.schemes[1].layout_variant, 'classic_broadsheet')
+assert.equal(designed.schemes[1].color_preset, 'classic_serious')
+assert.deepEqual(designed.schemes[1].content.body_blocks, [])
+const repairedStandard = normalizeSchemes(freePayload, { date, format: 'newspaper' })
+assert.notEqual(repairedStandard.schemes[1].layout_variant, 'classic_broadsheet')
+assert.equal(repairedStandard.schemes[1].content.body_blocks.length > 0, true)
+console.log('✓ design mode keeps free template/color choices and allows empty body')
+
 const prompt = buildUserPrompt({
   description: '两杯咖啡',
   photoMeta: { width: 1400, height: 1050, name: 'a.jpg' },
@@ -49,6 +62,14 @@ const prompt = buildUserPrompt({
 })
 assert.ok(prompt.includes('这两张照片'))
 assert.ok(prompt.includes('caption_secondary'))
+const designPrompt = buildUserPrompt({
+  description: '海报设计模式',
+  formatLabel: '海报',
+  date,
+  vision: false,
+  mode: 'design',
+})
+assert.ok(designPrompt.includes('可以完全省略正文'))
 console.log('✓ demo payload normalizes into 3 distinct schemes')
 console.log('✓ multi-image prompt includes secondary metadata and caption_secondary')
 

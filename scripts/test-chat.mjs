@@ -61,4 +61,37 @@ assert.ok(moved.y >= 0)
 assert.ok(Array.from(clamped.scheme.content.headline).length <= 15)
 console.log('✓ out-of-range moves and text are clamped')
 
+const designScheme = normalizeSchemes(buildDemoPayload({ date }), {
+  date,
+  mode: 'design',
+}).schemes[0]
+
+const standardLayoutAttempt = applyChatPatch(designScheme, 'newspaper', {
+  layout_variant: 'swiss_style',
+})
+assert.equal(standardLayoutAttempt.changed, false)
+
+const designLayout = applyChatPatch(
+  designScheme,
+  'newspaper',
+  { layout_variant: 'swiss_style' },
+  { mode: 'design', hasSub: true },
+)
+assert.equal(designLayout.changed, true)
+assert.equal(designLayout.scheme.layout_variant, 'swiss_style')
+assert.equal(
+  designLayout.scheme.layouts.newspaper.some((block) => block.id === 'secondary'),
+  true,
+)
+
+const designEmptyBody = applyChatPatch(
+  designScheme,
+  'newspaper',
+  { content: { body_blocks: [] } },
+  { mode: 'design' },
+)
+assert.equal(designEmptyBody.changed, true)
+assert.deepEqual(designEmptyBody.scheme.content.body_blocks, [])
+console.log('✓ design chat can switch layout and clear body')
+
 console.log('\nall chat patch tests passed')

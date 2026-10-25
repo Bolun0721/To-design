@@ -8,6 +8,8 @@ import {
   FONT_PAIRINGS,
   FONT_PAIRING_IDS,
   HEADLINE_SCALES,
+  VARIANTS,
+  buildLayout,
 } from '../config/presets.js'
 import { clampText, clamp, round, charLen } from '../lib/format.js'
 import { cleanText } from './validate.js'
@@ -127,8 +129,15 @@ function isPreset(value) {
  * 应用 patch：所有越界值被夹紧或忽略，返回新的 scheme 与是否发生改动。
  * @returns {{ scheme: object, changed: boolean }}
  */
-export function applyChatPatch(scheme, format, patch) {
+export function applyChatPatch(
+  scheme,
+  format,
+  patch,
+  { mode = 'standard', hasSub = false } = {},
+) {
   if (!patch || typeof patch !== 'object') return { scheme, changed: false }
+  const designMode = mode === 'design'
+  const moveLimits = designMode ? { dx: 30, dy: 30, dw: 30 } : MOVE_LIMITS
 
   const next = {
     ...scheme,
@@ -143,6 +152,19 @@ export function applyChatPatch(scheme, format, patch) {
     },
   }
   let changed = false
+
+  if (
+    designMode &&
+    VARIANTS[patch.layout_variant] &&
+    patch.layout_variant !== next.layout_variant
+  ) {
+    next.layout_variant = patch.layout_variant
+    next.layouts = {
+      newspaper: buildLayout(patch.layout_variant, 'newspaper', hasSub),
+      poster: buildLayout(patch.layout_variant, 'poster', hasSub),
+    }
+    changed = true
+  }
 
   if (isPreset(patch.color_preset) && patch.color_preset !== next.color_preset) {
     next.color_preset = patch.color_preset
@@ -200,12 +222,17 @@ export function applyChatPatch(scheme, format, patch) {
       .map((item) => cleanText(typeof item === 'string' ? item : item?.text))
       .filter(Boolean)
       .slice(0, 4)
-    if (texts.length) {
-      let budget = 260
+    if (designMode && content.body_blocks.length === 0) {
+      if (next.content.body_blocks.length) {
+        next.content.body_blocks = []
+        changed = true
+      }
+    } else if (texts.length) {
+      let budget = designMode ? 320 : 260
       const blocks = []
       for (const text of texts) {
         if (budget <= 0) break
-        const value = clampText(text, Math.min(180, budget))
+        const value = clampText(text, Math.min(designMode ? 200 : 180, budget))
         budget -= charLen(value)
         if (value) blocks.push({ type: 'paragraph', text: value })
       }
@@ -217,13 +244,13 @@ export function applyChatPatch(scheme, format, patch) {
   }
 
   if (Array.isArray(patch.layout_moves) && patch.layout_moves.length) {
-    for (const move of patch.layout_moves.slice(0, 6)) {
+    for (const move of patch.layout_moves.slice(0, designMode ? 8 : 6)) {
       if (!move || typeof move !== 'object') continue
       const block = next.layouts[format].find((item) => item.id === move.block_id)
       if (!block) continue
-      const dx = clamp(Number(move.dx) || 0, -MOVE_LIMITS.dx, MOVE_LIMITS.dx)
-      const dy = clamp(Number(move.dy) || 0, -MOVE_LIMITS.dy, MOVE_LIMITS.dy)
-      const dw = clamp(Number(move.dw) || 0, -MOVE_LIMITS.dw, MOVE_LIMITS.dw)
+      const dx = clamp(Number(move.dx) || 0, -moveLimits.dx, moveLimits.dx)
+      const dy = clamp(Number(move.dy) || 0, -moveLimits.dy, moveLimits.dy)
+      const dw = clamp(Number(move.dw) || 0, -moveLimits.dw, moveLimits.dw)
       if (!dx && !dy && !dw) continue
 
       const nextWidth = clamp(block.w + dw, 12, 100)

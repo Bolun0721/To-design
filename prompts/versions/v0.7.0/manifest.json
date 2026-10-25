@@ -1,0 +1,13 @@
+{
+  "version": "v0.7.0",
+  "date": "2026-10-25",
+  "gitTag": "v0.7.0",
+  "description": "新增标准模板 / 设计模式切换；设计总监提示词、自由模板选择、可空正文与设计模式对话 patch",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

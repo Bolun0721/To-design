@@ -9,6 +9,8 @@ export function TopBar({
   modelLabel,
   demo,
   theme,
+  mode = 'standard',
+  onModeChange,
   draftCount = 0,
   saveState = 'idle',
   onToggleTheme,
@@ -37,6 +39,18 @@ export function TopBar({
       <span class="header-sep"></span>
       <span class="header-crumb">BYOK 智能头版 <strong>/ ${viewLabel}</strong></span>
       <span class="header-fill"></span>
+      <label class=${`mode-select ${mode === 'design' ? 'is-design' : ''}`}>
+        <span class="mode-label">模式</span>
+        <select
+          value=${mode}
+          onChange=${(event) => onModeChange?.(event.currentTarget.value)}
+          aria-label="生成模式"
+          title=${mode === 'design' ? '设计模式：自由选模板/配色/字体' : '标准模板模式：按风格包生成'}
+        >
+          <option value="standard">标准模板</option>
+          <option value="design">设计模式</option>
+        </select>
+      </label>
       <span class="header-status">
         <span class=${`status-dot ${keyReady ? 'ok' : demo ? 'demo' : ''}`}></span>
         ${keyReady ? modelLabel || '模型已连接' : demo ? '示例模式 · 未连接模型' : '未连接模型'}
