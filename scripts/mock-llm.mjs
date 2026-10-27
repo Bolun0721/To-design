@@ -71,27 +71,40 @@ const server = http.createServer((req, res) => {
           {
             id: 'A',
             concept: '鲸尾穿过水波',
-            symbols: ['whale-tail'],
+            symbols: ['whale-tail', 'water-wave'],
+            composition: 'duo',
+            style: { strokeWidth: 1.6, fill: 'soft-accent', shadow: 1, opacity: 0.95 },
+            extra_elements: [
+              { shape: 'circle', cx: 476, cy: 92, r: 18, stroke: 'muted', strokeWidth: 1, opacity: 0.35 },
+              { shape: 'line', x1: 70, y1: 380, x2: 530, y2: 380, stroke: 'ink', strokeWidth: 1, opacity: 0.25 },
+            ],
             alt: '鲸尾与水波线条',
-            svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" fill="none"><path d="M300 330 C294 250 270 190 240 120 C286 150 314 190 326 240 C340 180 372 132 416 100 C394 186 362 254 330 300 C318 320 310 338 300 350 C290 338 282 320 270 300 C238 254 206 186 184 100 C228 132 260 180 274 240 C286 190 314 150 360 120 C330 190 306 250 300 330 Z" stroke="{{accent}}" stroke-width="4"/><path d="M120 378 C190 356 246 392 300 374 C354 356 414 394 480 370" stroke="{{muted}}" stroke-width="2"/></svg>',
           },
           {
             id: 'B',
             concept: '网格与一杯咖啡',
-            symbols: ['coffee'],
-            alt: '咖啡杯与网格线条',
-            svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" fill="none"><g stroke="{{muted}}" stroke-width="1"><path d="M70 80 H530 M70 180 H530 M70 280 H530 M70 380 H530 M120 50 V400 M300 50 V400 M480 50 V400"/></g><path d="M250 190 H380 V285 C380 310 360 326 330 326 H300 C270 326 250 310 250 285 Z" stroke="{{accent}}" stroke-width="4"/><path d="M380 210 C430 202 438 286 384 288" stroke="{{accent}}" stroke-width="4"/><path d="M278 150 C264 126 292 112 278 88 M310 144 C296 118 324 104 310 80 M342 150 C328 126 356 112 342 88" stroke="{{ink}}" stroke-width="2"/></svg>',
+            symbols: ['coffee', 'book'],
+            composition: 'horizon',
+            style: { strokeWidth: 1.3, fill: 'none', shadow: 0, opacity: 0.9 },
+            extra_elements: [
+              { shape: 'circle', cx: 500, cy: 120, r: 34, stroke: 'muted', strokeWidth: 1, opacity: 0.3 },
+            ],
+            alt: '咖啡与书的线条',
           },
           {
             id: 'C',
-            concept: '轨道与声波',
-            symbols: ['orbit', 'wave'],
-            alt: '轨道和声波线条',
-            svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" fill="none"><circle cx="300" cy="210" r="52" stroke="{{accent}}" stroke-width="4"/><ellipse cx="300" cy="210" rx="170" ry="58" transform="rotate(-24 300 210)" stroke="{{muted}}" stroke-width="2"/><ellipse cx="300" cy="210" rx="140" ry="42" transform="rotate(34 300 210)" stroke="{{muted}}" stroke-width="2" stroke-dasharray="4 8"/><path d="M90 380 C130 340 170 420 210 380 C250 340 290 420 330 380 C370 340 410 420 450 380 C490 340 520 400 544 378" stroke="{{accent}}" stroke-width="2"/></svg>',
+            concept: '轨道与星',
+            symbols: ['orbit', 'star'],
+            composition: 'triad',
+            style: { strokeWidth: 1.5, fill: 'soft-accent', shadow: 1, opacity: 0.95 },
+            extra_elements: [
+              { shape: 'arc', d: 'M90 380 C150 340 210 420 270 380 C330 340 390 420 450 380 C500 350 530 360 550 380', stroke: 'accent', strokeWidth: 1.2, opacity: 0.6 },
+            ],
+            alt: '轨道和星形线条',
           },
         ],
       })
-      console.log('[mock-llm] free art request -> 3 svg')
+      console.log('[mock-llm] free art request -> 3 library compositions')
     } else if (systemText.includes('这是设计模式，不是标准模板模式')) {
       // 设计模式：故意使用三种不同模板，且允许某套没有正文
       const designPayload = JSON.parse(JSON.stringify(payload))

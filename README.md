@@ -22,7 +22,7 @@
 9. 顶栏一键切换**暗色（原版）/ 亮色（米白 + 电光蓝）**工作室主题，选择会记住；
 10. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
 11. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）；
-12. 顶栏新增 **标准模板 / 设计模式 / 自由模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包；自由模式在无照片时生成 SVG 线条图案。
+12. 顶栏新增 **标准模板 / 设计模式 / 自由模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包；自由模式在无照片时从 94 枚 24×24 图标库组合 SVG 线条图案。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -174,11 +174,17 @@ Base URL：https://api.deepseek.com/v1
 - **不需要参考图**：每套方案生成 1 个主视觉 SVG，仍保留 3 套 A/B/C 与 9 套模板结构；
 - **有照片就用照片**：上传照片后自由模式直接使用照片，不调用图案生成；移除照片后回到已生成的 SVG / 兜底图案；
 - **和设计模式一样自由**：模板、配色、字体、正文量、增删板块、绝对坐标、互换都保留；
-- **两阶段生成**：先写内容与版式，再单独生成 3 个图案；图案失败不影响文案，逐套回退；
-- **SVG 安全**：只允许 g / path / line / circle / ellipse / polyline / polygon / rect；禁止 script、foreignObject、image、text、filter、渐变和外链；单图 ≤12KB；
-- **颜色 token**：模型只写 `{{ink}}` / `{{accent}}` / `{{muted}}`，前端按当前模板配色替换，九套模板自动对应各自的线条色；
-- **象征图案**：偶像 → 荧光棒，日本 → 樱花，DeepSeek → 鲸尾，AI → 芯片，咖啡 → 杯子，城市 → 天际线，旅行 → 纸飞机，时间 → 表盘；模型 SVG 无效时用符号库拼兜底；
+- **图标库优先**：模型不再从零画 SVG，而是从 **94 枚 24×24 图标**中选 1–3 个 symbol，前端负责构图和样式；
+- **九套模板配方**：线宽、填充、偏移阴影、透明度按模板固定，颜色由 palette token 注入；
+- **模型加元素**：模型可追加最多 8 个简单 `line / circle / dot / rect / arc / path` 元素；
+- **两阶段生成**：先写内容与版式，再单独生成图案方案；图案失败不影响文案，逐套回退；
+- **SVG 安全**：只允许简单线条 / 几何元素；填充仅 palette + 低透明度；禁止 script、foreignObject、image、text、filter、渐变和外链；单图 ≤12KB；
+- **象征表**：偶像 → 荧光棒，日本 → 樱花，DeepSeek → 鲸尾，AI → 芯片/机器人，咖啡 → 杯子，城市 → 天际线，旅行 → 飞机，时间 → 表盘；
 - **导出**：预览用 SVG，导出前在父页面光栅化成 PNG，避免 html2canvas 1.4 解码 SVG 失败。
+
+图标库与修正后的鱼 / 星星 / 彩虹：
+
+![图标库](docs/19-icon-library.png)
 
 ![自由模式](docs/18-free-mode.png)
 
@@ -261,7 +267,7 @@ Base URL：https://api.deepseek.com/v1
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -350,11 +356,13 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
        └─ demoData.js           离线示例稿件
   └─ config/presets.js          11 组配色、5 组字体、9 套版式 × 2 格式 + 双图拆分布局
   └─ config/designLayout.js     设计版式：增删板块、绝对坐标、完整矩形互换、重叠回退
-  └─ config/symbols.js          自由模式线条象征符号库
+  └─ config/icon-library.js     94 枚 24×24 图标库（文档 79 + 自定义 + 补充）
+  └─ config/symbol-map.js       抽象概念 → 图标象征表
+  └─ config/pattern-styles.js   九套模板的线宽 / 填充 / 阴影 / 透明度配方
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
-  └─ lib/                       image / exportPaper / drafts / svg 安全与光栅化
+  └─ lib/                       image / exportPaper / drafts / svg / composeArtwork
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
-  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.10.0）
+  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.11.0）
 server.mjs                      静态服务 + /api/llm 极薄中继（零依赖）
 ```
 
@@ -391,9 +399,11 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── sandbox/entry.js       # iframe 内渲染 / 拖动 / 改字 / 选中卡片 / 导出
 │   ├── config/presets.js      # 11 组配色 / 5 组字体 / 9 套版式 / 单图与双图布局
 │   ├── config/designLayout.js # 设计模式自定义板块、坐标、互换与重叠保护
-│   ├── config/symbols.js      # 自由模式象征图案库
+│   ├── config/icon-library.js # 94 枚 24×24 图标库
+│   ├── config/symbol-map.js   # 抽象概念 → 图标象征表
+│   ├── config/pattern-styles.js # 九套模板图案配方
 │   ├── config/stylePacks.js   # 3 组风格包与包切换
-│   └── lib/                   # image / exportPaper / drafts / svg 安全层
+│   └── lib/                   # image / exportPaper / drafts / svg / composeArtwork
 ├── prompts/versions/          # 提示词版本快照与 manifest
 ├── public/
 │   ├── demo/coffee.jpg        # 程序化生成的示例照片（主图）
@@ -406,6 +416,9 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── test-validate.mjs      # 校验层单测（含双图布局 / 风格包）
 │   ├── test-chat.mjs          # 对话 patch 单测
 │   ├── test-free.mjs          # 自由模式 SVG 安全 / 符号兜底单测
+│   ├── test-icons.mjs         # 94 图标 / 象征表 / 9 模板 × 6 构图
+│   ├── import-icon-library.mjs # 从参考 MD 生成图标库
+│   ├── icon-contact-sheet.mjs # 生成 94 图标总览 HTML / PNG
 │   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
 │   ├── export-matrix.mjs      # 经典 3 方案 × 2 格式 × 2 主题 导出矩阵
 │   ├── mock-llm.mjs           # 本地 mock 模型（生成 + 对话 + 补充图注）
@@ -469,7 +482,8 @@ node scripts/export-matrix.mjs
 - 九套模板 × 报纸/海报（双图）：**18/18 导出通过**，0 未捕获异常；页脚、斜线、彩条、网格、海报注记都进入 PNG；
 - 多图自检：2 图 → 移除子图后回到单图且**无占位块** → 单图导出 → 重新上传 → **补充图注**（主图 / 子图各一条）并重排，0 异常；
 - 设计模式自检：顶栏下拉切到设计模式 → 提示词弹窗显示设计总监版 → mock 返回包豪斯 / 瑞士 / 卡带三套不同模板 → 画廊隐藏风格包 → 正文可空 → 切回标准模式恢复风格包，0 异常；
-- 自由模式自检：顶栏选自由模式先弹「推荐使用支持 SVG / 图像生成的结构化模型」；取消保持标准、确认后持久化；无照片生成 3 张 SVG 线条图案、无占位；打开画布后 SVG 正常、导出 1588×2246 PNG；上传照片后 3 套改为照片、不显示 SVG，0 异常；
+- 自由模式自检：顶栏选自由模式先弹「推荐使用支持 SVG / 图像生成的结构化模型」；取消保持标准、确认后持久化；无照片生成 3 张图标库组合 SVG、无占位；打开画布后 SVG 正常、导出 1588×2246 PNG；上传照片后 3 套改为照片、不显示 SVG，0 异常；
+- 图标库自检：94 枚图标、11 个分组、鱼/星/彩虹修正；9 套模板 × 6 种构图全部通过 SVG 清洗；填充 / 偏移阴影 / 透明度进入组合 SVG；
 - 设计版式自检：mock 方案 A 新增引语板块 `quote2`（左上角 5% / 82%）并覆盖主标题坐标；方案 C 新增 `footer2` 页脚并与原页脚显示为「页脚 1 / 页脚 2」，页脚文字实际渲染；单元测试覆盖新增板块、绝对坐标、完整矩形互换与“新重叠回退”；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 经典导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；
@@ -483,6 +497,7 @@ node scripts/export-matrix.mjs
 
 - **Preact**（MIT）、**htm**（Apache-2.0）、**html2canvas**（MIT）已 vendor 到 `public/vendor/`，运行时无需安装；`package.json` 里的依赖仅用于重新拉取 / 升级这些文件。
 - 示例照片由 `scripts/make_demo_photo.py` 用 Pillow 程序化生成，不依赖外部图库。
+- **94 枚 Emoji Outline 图标**由用户提供的 `emoji-outline-svg-code*.md` 整理；原始参考保存在 `prompts/references/emoji-outline/`，鱼 / 星星 / 彩虹和自定义图标在 `icon-library.overrides.js` 中维护。
 - 英文字体 Playfair Display / Source Sans 3 / Source Serif 4 / PT Serif / IBM Plex Mono 为 OFL 许可，通过 Google Fonts **可选、非阻塞**加载；离线时回退到 Georgia / 系统无衬线 / 等宽，中文回退到宋体 / 苹方 / 思源。
 
 ## 已知边界 / 下一步
@@ -496,7 +511,8 @@ node scripts/export-matrix.mjs
 - **多图范围**：九套模板都支持「主图 + 子图」（最多 2 张）；更多图需要在布局层继续扩展；
 - **子图删除即回收**：移除后回到单图全宽版式，不保留占位块；主图图注与子图图注分别保存；
 - **海报注记**：`poster_note` 是短装饰文案，不是正文；模型可能输出英文标签或氛围句，均可在画布上双击修改；
-- **自由模式仍是 SVG 线条**：每套 1 个主视觉；抽象词使用符号库/象征图案，不生成写实插画；模型 SVG 失败会用符号库兜底；
+- **自由模式仍是线条图案**：每套 1 个主视觉；从 94 枚图标库组合，模型只负责选图案、构图、样式和补元素；不生成写实插画；
+- **填充与阴影是受控的**：填充只允许 palette + 低透明度，阴影用偏移重复路径，不使用 SVG filter；
 - **纯生图模型未接入**：当前 BYOK 是 chat/completions + 结构化 JSON；DALL·E / Flux / SD 需要单独的 provider 与图片存储，自由模式提示文案已说明这一点；
 - **自由模式有照片就用照片**：上传照片后不会同时显示生成的 SVG；移除照片才回到 SVG/兜底图案；
 - **设计模式不是无限画布**：仍然只有 9 套基础模板、3 套方案和固定白名单；但支持增删文字板块、绝对坐标和互换。坐标必须落在纸张百分比范围内，且不能新增图片 / scrim / 自定义 HTML；
@@ -510,7 +526,7 @@ node scripts/export-matrix.mjs
 - **草稿只在本机**：IndexedDB 按浏览器 / 设备隔离，没有账号同步；清理浏览器数据会删除草稿；
 - **移动端**：当前以桌面工作台为主，≤1080px 会隐藏右侧检查器；移动端布局需要单独设计。
 
-下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）、iframe 沙箱、九套模板 / 风格包、双图增删 / 补充图注 / 海报注记、设计模式、自定义板块，以及自由模式 SVG 图案已完成；提示词快照在 `prompts/versions/`。
+下一步优先级：移动端。P0（导出矩阵 + CSS 颜色护栏 + CI）、P1（双图位 + 本地草稿 / 对话历史）、iframe 沙箱、九套模板 / 风格包、双图增删 / 补充图注 / 海报注记、设计模式、自定义板块、自由模式与 94 图标库已完成；提示词快照在 `prompts/versions/`。
 
 ---
 

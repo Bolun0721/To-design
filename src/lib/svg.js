@@ -34,8 +34,10 @@ const ALLOWED_ATTRS = new Set([
   'ry',
   'points',
   'fill',
+  'fill-opacity',
   'stroke',
   'stroke-width',
+  'stroke-opacity',
   'stroke-linecap',
   'stroke-linejoin',
   'stroke-miterlimit',
@@ -64,7 +66,14 @@ function safeAttrValue(name, value, palette) {
     return colors.includes(normalized) ? normalized : String(palette.accent).toLowerCase()
   }
   if (name === 'fill') {
-    return raw.toLowerCase() === 'none' ? 'none' : null
+    const normalized = raw.toLowerCase()
+    if (normalized === 'none') return 'none'
+    const colors = Object.values(palette).map((color) => String(color).toLowerCase())
+    return colors.includes(normalized) ? normalized : null
+  }
+  if (name === 'fill-opacity' || name === 'stroke-opacity') {
+    const num = Number(raw)
+    return Number.isFinite(num) && num >= 0 && num <= 0.25 ? String(num) : null
   }
   if (name === 'viewBox') {
     const parts = raw.split(/[\s,]+/).map(Number)
@@ -194,8 +203,6 @@ export function sanitizeSvg(raw, palette = DEFAULT_PALETTE, fallbackViewBox = '0
       const name = attr[1]
       const value = attr[2] ?? attr[3] ?? ''
       if (!ALLOWED_ATTRS.has(name)) continue
-      // 统一由根节点 fill="none" 控制，避免重复 fill 属性导致 XML 无效。
-      if (name === 'fill') continue
       const safe = safeAttrValue(name, value, safePalette)
       if (safe == null) continue
       if (name === 'viewBox') viewBox = safe
@@ -207,7 +214,10 @@ export function sanitizeSvg(raw, palette = DEFAULT_PALETTE, fallbackViewBox = '0
     if (tag === 'svg' && !attrs.some((item) => item.startsWith('viewBox='))) {
       attrs.push(`viewBox="${fallbackViewBox}"`)
     }
-    const fillNone = tag === 'svg' ? ' fill="none"' : ''
+    const fillNone =
+      tag === 'svg' && !attrs.some((item) => item.startsWith('fill='))
+        ? ' fill="none"'
+        : ''
     out += `<${tag} ${attrs.join(' ')}${fillNone}${selfClosing ? ' /' : ''}>`
     if (!selfClosing) stack.push(tag)
     last = tagRe.lastIndex

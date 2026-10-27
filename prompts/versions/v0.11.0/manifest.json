@@ -1,0 +1,14 @@
+{
+  "version": "v0.11.0",
+  "date": "2026-10-28",
+  "gitTag": "v0.11.0",
+  "description": "自由模式图标库优先：94 枚 24×24 图标、象征表、九套模板图案配方、鱼/星/彩虹修正、模型补充元素",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "artPrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}
