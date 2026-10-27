@@ -6,29 +6,30 @@ import { resolvePatternStyle } from '../config/pattern-styles.js'
 export const COMPOSITIONS = ['center', 'duo', 'triad', 'horizon', 'vertical', 'scatter']
 
 const LAYOUTS = {
-  center: [{ x: 0.5, y: 0.5, size: 0.56 }],
+  // 第一个 symbol 是主图案，刻意比其他图案大约 60%–90%，让主图不再空。
+  center: [{ x: 0.5, y: 0.5, size: 0.98 }],
   duo: [
-    { x: 0.33, y: 0.52, size: 0.36 },
-    { x: 0.68, y: 0.47, size: 0.36 },
+    { x: 0.31, y: 0.53, size: 0.64 },
+    { x: 0.73, y: 0.38, size: 0.38 },
   ],
   triad: [
-    { x: 0.5, y: 0.34, size: 0.31 },
-    { x: 0.28, y: 0.68, size: 0.28 },
-    { x: 0.72, y: 0.68, size: 0.28 },
+    { x: 0.39, y: 0.53, size: 0.6 },
+    { x: 0.75, y: 0.28, size: 0.3 },
+    { x: 0.74, y: 0.76, size: 0.26 },
   ],
   horizon: [
-    { x: 0.22, y: 0.58, size: 0.28 },
-    { x: 0.5, y: 0.53, size: 0.36 },
-    { x: 0.78, y: 0.58, size: 0.28 },
+    { x: 0.5, y: 0.55, size: 0.6 },
+    { x: 0.19, y: 0.28, size: 0.28 },
+    { x: 0.81, y: 0.28, size: 0.24 },
   ],
   vertical: [
-    { x: 0.5, y: 0.28, size: 0.38 },
-    { x: 0.5, y: 0.72, size: 0.3 },
+    { x: 0.5, y: 0.4, size: 0.64 },
+    { x: 0.5, y: 0.8, size: 0.3 },
   ],
   scatter: [
-    { x: 0.27, y: 0.34, size: 0.3 },
-    { x: 0.72, y: 0.3, size: 0.26 },
-    { x: 0.54, y: 0.7, size: 0.28 },
+    { x: 0.38, y: 0.5, size: 0.62 },
+    { x: 0.16, y: 0.24, size: 0.28 },
+    { x: 0.82, y: 0.72, size: 0.24 },
   ],
 }
 
