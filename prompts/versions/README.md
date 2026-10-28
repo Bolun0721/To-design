@@ -57,6 +57,14 @@ prompts/
       artPrompt.js          # 图标库组合 + 样式 + 额外元素
       designSkill.js
       captions.js
+    v0.12.0/
+      manifest.json
+      systemPrompt.js       # 海报也写 1–2 段报纸备用正文
+      chat.js
+      designPrompt.js       # 正文 1–4 段；海报不输出空数组
+      artPrompt.js
+      designSkill.js
+      captions.js
 ```
 
 图标原始参考在 `prompts/references/emoji-outline/`，由 `scripts/import-icon-library.mjs` 生成 `src/config/icon-library.generated.js`；鱼、星星、彩虹和自定义图标在 `icon-library.overrides.js` 中手改。
@@ -72,6 +80,7 @@ prompts/
 | `v0.9.0` | 2026-10-25 | 同类型板块编号；补全页脚 / 报头 / 日期栏 / 署名新增类型与内容渲染；删除后仍可新增同类型 |
 | `v0.10.0` | 2026-10-25 | 自由模式：无图生成 SVG 线条图案，符号库兜底，有照片优先用照片 |
 | `v0.11.0` | 2026-10-28 | 94 枚图标库 + 象征表 + 九套图案配方；模型从图标库组合并追加元素；修正鱼/星星/彩虹 |
+| `v0.12.0` | 2026-10-28 | 海报也写 1–2 段报纸备用正文；空正文兜底并显示生成提示 |
 
 ## 新增版本
 

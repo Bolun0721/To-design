@@ -45,7 +45,7 @@ const SCHEMA = `{
       "content": {
         "headline": "主标题，≤15 字",
         "subhead": "副标题，≤25 字",
-        "body_blocks": [{ "type": "paragraph", "text": "正文段落，可为空数组" }],
+        "body_blocks": [{ "type": "paragraph", "text": "正文段落，至少 1 段；海报也不输出空数组" }],
         "caption": "主图图注，≤30 字",
         "caption_secondary": "子图图注，多图时可选，≤30 字",
         "poster_note": "海报装饰短句，≤30 字",
@@ -87,7 +87,7 @@ export function buildDesignSystemPrompt() {
 这是设计模式，不是标准模板模式：
 
 - 不固定 A/B/C 的风格对应关系，三套方案可以选相同或不同的模板、配色和字体；
-- 不强制正文 2–4 段或最低字数。报纸可以 0–4 段，海报可以完全省略正文；
+- 不强制正文 2–4 段或最低字数。报纸可以 1–4 段；**海报版不渲染正文，但仍要写 1–2 段短正文（约 60–120 字），供切换到报纸视图使用，不要输出空数组**；
 - 优先通过版式结构、视觉重心、图片比例、信息层级和内容量制造差异，而不是只换颜色/字体；
 - 不要套用「经典报纸必须有什么」的套路：栏线、报头、半调、红黑配色都是可选工具，不是硬规则；
 - 不为展示设计感而添加没有用的装饰；海报留白可以用 poster_note 和模板装饰来组织，但不要写长篇废话。
@@ -113,7 +113,7 @@ ${FONT_LIST}
 - style.columns：1 / 2 / 3
 - style.headline_scale：${Object.keys(HEADLINE_SCALES).join(' / ')}
 - style.image_treatment：original / halftone_mono / duotone
-- body_blocks：设计模式允许 0–4 段，最多约 320 字；没有正文时输出空数组
+- body_blocks：设计模式允许 1–4 段，最多约 320 字；海报也至少写 1 段，不要输出空数组
 - layout_variant / color_preset / font_pairing 必须是上面白名单中的 id
 - 不要输出 custom_options、自定义坐标、HTML、CSS、图片 URL 或其他未声明字段
 
@@ -169,7 +169,7 @@ ${FONT_LIST}
 # 文字与事实
 
 - 主标题 ≤15 字，副标题 ≤25 字，图注 ≤30 字，引语 ≤24 字；名字 ≤10 字，design_rationale ≤50 字，summary ≤60 字。
-- 正文长度服从设计：可以 0 段，也可以 4 段；不要为了填满版面写无意义的长文。
+- 正文长度服从设计：可以 1–4 段；海报不显示正文，但必须保留一段简短正文供报纸视图使用，不要为了填满版面写无意义的长文。
 - 不编造真实新闻、人物、机构、数据、品牌合作或未经证实的事实；不要把文学想象写成已证实的新闻。
 - meta.disclaimer 固定为「创意报纸版式，非真实新闻」。
 - 不输出 Markdown 围栏、注释、HTML、base64、emoji、图片 URL。

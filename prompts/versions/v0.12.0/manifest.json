@@ -1,0 +1,14 @@
+{
+  "version": "v0.12.0",
+  "date": "2026-10-28",
+  "gitTag": "v0.12.0",
+  "description": "海报生成保留报纸备用正文：设计/自由模式海报仍写 1–2 段短正文，空正文补一条并提示",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "artPrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

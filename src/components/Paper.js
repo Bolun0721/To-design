@@ -406,17 +406,19 @@ export function Paper({
           <div class="body" style=${`column-count:${st.columns}`}>
             ${customText
               ? html`<p data-edit=${blockEditKey}>${block.text}</p>`
-              : (content.body_blocks || []).map((p, i) => {
-                  const chars = Array.from(String(p.text || ''))
-                  const withDropCap = useDropCap && i === 0 && chars.length > 1
-                  return html`
-                    <p data-edit=${`paragraph:${i}`}>
-                      ${withDropCap
-                        ? html`<span class="dropcap">${chars[0]}</span>${chars.slice(1).join('')}`
-                        : p.text}
-                    </p>
-                  `
-                })}
+              : (content.body_blocks || []).some((p) => String(p.text || '').trim())
+                ? (content.body_blocks || []).map((p, i) => {
+                    const chars = Array.from(String(p.text || ''))
+                    const withDropCap = useDropCap && i === 0 && chars.length > 1
+                    return html`
+                      <p data-edit=${`paragraph:${i}`}>
+                        ${withDropCap
+                          ? html`<span class="dropcap">${chars[0]}</span>${chars.slice(1).join('')}`
+                          : p.text}
+                      </p>
+                    `
+                  })
+                : html`<p class="body-empty">此方案没有正文；切到海报视图查看完整版式。</p>`}
           </div>
         `}
         ${block.type === 'pullquote' &&

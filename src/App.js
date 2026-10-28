@@ -1228,6 +1228,7 @@ export function App() {
             <${Gallery}
               schemes=${schemes}
               summary=${summary}
+              warnings=${warnings}
               recommended=${recommended}
               format=${format}
               photo=${photo}

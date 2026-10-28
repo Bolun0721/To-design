@@ -150,6 +150,11 @@ export function InputRail({
             `,
           )}
         </div>
+        ${format === 'poster' && (mode === 'design' || mode === 'free') && html`
+          <p class="insp-note poster-body-hint">
+            海报本身不显示正文；模型仍会为切回报纸保留 1–2 段短正文。
+          </p>
+        `}
       </section>
 
       <section class="rail-section">

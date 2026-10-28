@@ -2368,6 +2368,18 @@ body.is-block-dragging {
   margin-bottom: 0;
 }
 
+.body-empty {
+  margin: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--muted);
+  border-bottom: 1px solid var(--muted);
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-indent: 0;
+}
+
 .variant-classic_broadsheet .body p:first-child {
   text-indent: 0;
 }

@@ -13,6 +13,7 @@ export function Gallery({
   format,
   photo,
   photo2,
+  warnings = [],
   stylePack = 'classic',
   mode = 'standard',
   onCycleStylePack,
@@ -69,6 +70,16 @@ export function Gallery({
               <span class="pack-count">3 / 9 种</span>
             </div>
           `}
+
+      ${warnings.length > 0 &&
+      html`
+        <details class="warn-box" open>
+          <summary>生成提示 · ${warnings.length} 条</summary>
+          <ul>
+            ${warnings.map((warning) => html`<li>${warning}</li>`)}
+          </ul>
+        </details>
+      `}
 
       <div class="gallery-cards">
         ${schemes.map((scheme, index) => {

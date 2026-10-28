@@ -180,7 +180,7 @@ if (!result.variants.some((text) => text.includes('瑞士风格'))) throw new Er
 if (!result.variants.some((text) => text.includes('卡带未来'))) throw new Error('没有采用 mock 的卡带方案')
 if (!result.designBar) throw new Error('设计模式画廊没有提示条')
 if (result.stylePackCycle) throw new Error('设计模式仍然显示风格包切换')
-if (result.bodyB) throw new Error('设计模式空正文没有被保留')
+if (!result.bodyB) throw new Error('设计模式空正文没有补报纸备用正文')
 if (!result.extraText.includes('第二个引语')) throw new Error('设计模式新增板块没有渲染')
 if (result.extraLeft !== '5%') throw new Error(`新增板块自定义坐标异常：${result.extraLeft}`)
 if (!result.footerLabels.includes('页脚 1') || !result.footerLabels.includes('页脚 2')) {

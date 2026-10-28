@@ -162,9 +162,17 @@ export function normalizeSchemes(
       bodyBlocks = [...head, { type: 'paragraph', text: rest }]
       warnings.push(`方案 ${slot.id} 的正文超过 4 段，已合并。`)
     }
-    if (!bodyBlocks.length && !designMode) {
-      bodyBlocks = [{ type: 'paragraph', text: subhead || '这一期的头版，留给一个普通的下午。' }]
-      warnings.push(`方案 ${slot.id} 缺少正文，已用副标题兜底。`)
+    if (!bodyBlocks.length) {
+      bodyBlocks = [
+        {
+          type: 'paragraph',
+          text:
+            subhead ||
+            pullquote ||
+            '这一版留给图片与标题，正文在报纸视图中展开。',
+        },
+      ]
+      warnings.push(`方案 ${slot.id} 缺少正文，已补一条报纸备用正文，请检查。`)
     }
     const bodyChars = bodyBlocks.reduce((sum, b) => sum + charLen(b.text), 0)
     if (!designMode && bodyChars < 120) {

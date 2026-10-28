@@ -49,14 +49,23 @@ const freePayload = JSON.parse(JSON.stringify(demo))
 freePayload.schemes[1].layout_variant = 'classic_broadsheet'
 freePayload.schemes[1].color_preset = 'classic_serious'
 freePayload.schemes[1].content.body_blocks = []
-const designed = normalizeSchemes(freePayload, { date, format: 'newspaper', mode: 'design' })
+const designed = normalizeSchemes(freePayload, { date, format: 'poster', mode: 'design' })
 assert.equal(designed.schemes[1].layout_variant, 'classic_broadsheet')
 assert.equal(designed.schemes[1].color_preset, 'classic_serious')
-assert.deepEqual(designed.schemes[1].content.body_blocks, [])
+assert.equal(designed.schemes[1].content.body_blocks.length > 0, true)
+assert.ok(designed.warnings.some((warning) => warning.includes('缺少正文')))
+const designedNewspaper = buildDesignLayout(designed.schemes[1], 'newspaper', false)
+assert.equal(designedNewspaper.some((block) => block.type === 'body'), true)
+assert.ok(
+  designed.schemes[1].content.body_blocks
+    .map((block) => block.text)
+    .join('')
+    .trim().length > 0,
+)
 const repairedStandard = normalizeSchemes(freePayload, { date, format: 'newspaper' })
 assert.notEqual(repairedStandard.schemes[1].layout_variant, 'classic_broadsheet')
 assert.equal(repairedStandard.schemes[1].content.body_blocks.length > 0, true)
-console.log('✓ design mode keeps free template/color choices and allows empty body')
+console.log('✓ design mode keeps free template/color choices and backfills a newspaper body')
 
 const customScheme = designed.schemes[0]
 customScheme.design_layout = {
@@ -99,7 +108,8 @@ const designPrompt = buildUserPrompt({
   vision: false,
   mode: 'design',
 })
-assert.ok(designPrompt.includes('可以完全省略正文'))
+assert.ok(designPrompt.includes('报纸备用正文'))
+assert.ok(designPrompt.includes('不要输出'))
 console.log('✓ demo payload normalizes into 3 distinct schemes')
 console.log('✓ multi-image prompt includes secondary metadata and caption_secondary')
 
