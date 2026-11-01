@@ -23,6 +23,7 @@
 10. **本地草稿自动保存**：方案、照片、对话和画布位置写入 IndexedDB，刷新恢复；顶栏「草稿」可查看 / 打开 / 删除；
 11. 导出 2× PNG，或打印 / 存为 A4 PDF（海报为 4:5）；
 12. 顶栏新增 **标准模板 / 设计模式 / 自由模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包；自由模式在无照片时从 94 枚 24×24 图标库组合 SVG 线条图案。
+13. 模型卡片新增 **排版模型 / 生图模型** 用途切换：生图模型按「原图 + 9 种风格」生成或处理素材图，写入素材框后自动切回排版模型生成 3 套版式；生图 Key 独立保存，不复用排版 Key。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -71,15 +72,21 @@ http://127.0.0.1:5173/?demo=1&theme=light          # 亮色 + 示例
 
 | 字段 | 说明 |
 |---|---|
-| API Key | 只存 `sessionStorage`，关闭标签页即失效 |
-| 服务商 | DeepSeek / OpenAI / Moonshot / 智谱 / SiliconFlow / 自定义 |
+| 模型用途 | 排版模型 / 生图模型；两套配置分别保存 |
+| API Key | 排版 Key，只存 `sessionStorage` |
+| 生图 Key | 独立保存；留空不会复用排版 Key |
+| 服务商 | 排版：DeepSeek / OpenAI / Moonshot / 智谱 / SiliconFlow / 自定义；生图：火山方舟 / OpenAI Images / 自定义 |
 | Base URL | OpenAI 兼容地址，如 `https://api.deepseek.com/v1` |
-| 模型名 | 如 `deepseek-chat`、`gpt-4o-mini`、`glm-4-flash` |
+| 模型名 | 如 `deepseek-chat`、`gpt-4o-mini`、`doubao-seedream-5-0-260128` |
 | 请求方式 | `自动`：本地开发走中继，静态部署走直连；也可手动切换 |
-| 让模型直接看图 | 仅视觉模型可用；不勾选时模型只根据文字描述写稿 |
+| 让模型直接看图 | 仅排版视觉模型可用；不勾选时模型只根据文字描述写稿 |
+| 生图参考图 | 模型支持时才走参考图编辑 / 图生图 |
 
-本地中继（`POST /api/llm`）只做一件事：把请求转发到你填的 Base URL，解决部分模型的 CORS 限制。
-它**不落盘、不记录 Key**，并拒绝非 https、本机地址。生产部署可改为直连或自己加一层 Serverless 中继。
+本地中继：
+
+- `POST /api/llm` 转发对话请求；
+- `POST /api/image` 转发图片生成 / 图片编辑请求；
+- 两者都**不落盘、不记录 Key**，并拒绝非 https、本机地址。生产部署可改为直连或自己加一层 Serverless 中继。
 
 > 如果你不是用 `node server.mjs` 启动，而是用任意静态服务器打开本项目，请把「请求方式」改成
 > **浏览器直连**——那种情况下没有本地中继，需要模型服务商允许浏览器 CORS。
@@ -189,6 +196,42 @@ Base URL：https://api.deepseek.com/v1
 
 ![自由模式](docs/18-free-mode.png)
 
+### 生图模型 + 排版模型（双阶段）
+
+左侧「03 / 模型」新增 **模型用途**：
+
+- **排版模型**：写稿 + 设计版式，保持原有流程；
+- **生图模型**：先生成或处理素材图，成功后自动切回排版模型。
+
+生图模式：
+
+- 提示词 textarea 缩短到 2 行；
+- 出现「视觉风格」下拉：**原图 + 9 种已有模板风格**（经典大报 / 小报冲击 / 极简报头 / 构成主义 / 包豪斯 / NASA 朋克 / 风格派 / 瑞士风格 / 卡带未来）；
+- 支持 **无参考图文生图**，也支持 **参考图编辑 / 图生图**；
+- 生成结果写入素材框，显示「AI 素材 · 风格名」，可 **恢复原图**；
+- 成功后自动切回排版模型；默认自动生成 3 套版式，可取消「生成素材后立即排版」改为手动生成。
+
+生图 Key 独立保存：
+
+- 只写入本标签页的 `sessionStorage`；
+- 留空不会复用排版 Key，而是直接提示填写生图 Key。
+
+服务商：
+
+- 内置 **火山方舟 / OpenAI Images / 自定义兼容接口**；
+- 第一版走 OpenAI 兼容的 `/images/generations`，参考图在 OpenAI 下走 `/images/edits`，火山方舟走图片生成接口的 `image` 参数；
+- 火山方舟图片模型请使用 **Seedream**；**Seedance 是视频生成模型**，不返回图片，不能作为本流程的生图模型。
+
+火山方舟示例：
+
+```text
+Base URL：https://ark.cn-beijing.volces.com/api/v3
+模型名：doubao-seedream-5-0-260128
+尺寸：2K
+```
+
+![生图模型](docs/20-image-model.png)
+
 ### 多图模式（所有模板）
 
 - **九套模板全部支持主图 + 子图**；`buildLayout(variant, format, hasSub)` 会把主图位拆成两张图，窄图位会自动改为上下叠放；
@@ -264,11 +307,12 @@ Base URL：https://api.deepseek.com/v1
 - `chat.js`：对话微调提示词；
 - `designPrompt.js`：设计模式生成 + 对话提示词；
 - `artPrompt.js`：自由模式 SVG 图案提示词；
+- `imagePrompt.js`：生图风格提示词（原图 + 9 种）；
 - `designSkill.js`：设计 Skill；
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -358,13 +402,14 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
   └─ config/presets.js          11 组配色、5 组字体、9 套版式 × 2 格式 + 双图拆分布局
   └─ config/designLayout.js     设计版式：增删板块、绝对坐标、完整矩形互换、重叠回退
   └─ config/icon-library.js     94 枚 24×24 图标库（文档 79 + 自定义 + 补充）
+  └─ config/imageStyles.js      生图：原图 + 9 种模板风格提示词
   └─ config/symbol-map.js       抽象概念 → 图标象征表
   └─ config/pattern-styles.js   九套模板的线宽 / 填充 / 阴影 / 透明度配方
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
   └─ lib/                       image / exportPaper / drafts / svg / composeArtwork
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
-  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.12.0）
-server.mjs                      静态服务 + /api/llm 极薄中继（零依赖）
+  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.13.0）
+server.mjs                      静态服务 + /api/llm /api/image 极薄中继（零依赖）
 ```
 
 **和 Open Design 的对应关系**（按其交互纪律做的垂直化简化）：
@@ -381,7 +426,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 | BYOK 本地优先 | Key 只存 sessionStorage，中继不落盘 |
 | 本地 daemon | 不需要：模型只写 JSON，不碰文件系统 |
 
-**为什么没有做成图片生成模型？** 报纸的可信度来自「可读的文字 + 稳定的版式」，扩散模型画不出可排版的正文。这里让 LLM 写稿、模板引擎排版、浏览器导出图片——每一步都是确定性的，也才能支持拖动、改字和打印。
+**为什么没有让图片生成模型直接排版？** 报纸的可信度来自「可读的文字 + 稳定的版式」，扩散模型画不出可排版的正文。这里让图片模型只负责素材图，LLM 写稿、模板引擎排版、浏览器导出图片——每一步都是确定性的，也才能支持拖动、改字和打印。
 
 ## 目录
 
@@ -389,18 +434,19 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 .
 ├── .github/workflows/ci.yml   # CI：语法检查 + npm test（导出矩阵需本地浏览器）
 ├── index.html                 # 入口（import map + 字体 + html2canvas）
-├── server.mjs                 # 零依赖静态服务 + LLM 中继
+├── server.mjs                 # 零依赖静态服务 + LLM / 生图中继
 ├── src/
 │   ├── App.js
 │   ├── main.js
 │   ├── styles.css             # 工作室外壳 + 报纸模板样式
 │   ├── theme-chat.css         # 明暗主题 + 对话面板
-│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch / 图注 / SVG
+│   ├── agent/                 # 提示词 / 校验 / 请求 / 示例 / 对话 patch / 图注 / SVG / 生图
 │   ├── components/            # Paper / IframePaper / Inspector / ChatPanel / DraftsModal …
 │   ├── sandbox/entry.js       # iframe 内渲染 / 拖动 / 改字 / 选中卡片 / 导出
 │   ├── config/presets.js      # 11 组配色 / 5 组字体 / 9 套版式 / 单图与双图布局
 │   ├── config/designLayout.js # 设计模式自定义板块、坐标、互换与重叠保护
 │   ├── config/icon-library.js # 94 枚 24×24 图标库
+│   ├── config/imageStyles.js  # 生图风格提示词
 │   ├── config/symbol-map.js   # 抽象概念 → 图标象征表
 │   ├── config/pattern-styles.js # 九套模板图案配方
 │   ├── config/stylePacks.js   # 3 组风格包与包切换
@@ -418,6 +464,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── test-chat.mjs          # 对话 patch 单测
 │   ├── test-free.mjs          # 自由模式 SVG 安全 / 符号兜底单测
 │   ├── test-icons.mjs         # 94 图标 / 象征表 / 9 模板 × 6 构图
+│   ├── test-image.mjs         # 10 风格 / 生图提示词 / 独立 Key 校验
 │   ├── import-icon-library.mjs # 从参考 MD 生成图标库
 │   ├── icon-contact-sheet.mjs # 生成 94 图标总览 HTML / PNG
 │   ├── check-css.mjs          # 护栏：禁止 html2canvas 不支持的 CSS 颜色函数
@@ -431,6 +478,7 @@ server.mjs                      静态服务 + /api/llm 极薄中继（零依赖
 │   ├── cdp-design.mjs         # 设计模式下拉 / 设计提示词 / 自由模板生成
 │   ├── cdp-body.mjs           # 海报空正文 → 切回报纸正文 / 提示 自检
 │   ├── cdp-free.mjs           # 自由模式提示 / SVG 图案 / 照片优先 / 导出
+│   ├── cdp-image.mjs          # 生图 → 素材框 → 自动切回排版 → 3 套
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
 │   ├── cdp-multi.mjs          # 子图增删 / 无占位 / 补充图注 / 单图导出
@@ -464,6 +512,7 @@ node scripts/cdp-generate.mjs
 node scripts/cdp-design.mjs
 node scripts/cdp-body.mjs
 node scripts/cdp-free.mjs
+node scripts/cdp-image.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
 node scripts/cdp-multi.mjs
@@ -488,12 +537,13 @@ node scripts/export-matrix.mjs
 - 自由模式自检：顶栏选自由模式先弹「推荐使用支持 SVG / 图像生成的结构化模型」；取消保持标准、确认后持久化；无照片生成 3 张图标库组合 SVG、无占位；打开画布后 SVG 正常、导出 1588×2246 PNG；上传照片后 3 套改为照片、不显示 SVG，0 异常；
 - 海报正文自检：设计模式 + 海报格式生成三套，模型 B 返回空正文 → 画廊显示「缺少正文，已补一条报纸备用正文」→ 进入 B → 切回报纸 → 正文至少 1 段、没有空正文状态；
 - 图标库自检：94 枚图标、11 个分组、鱼/星/彩虹修正；9 套模板 × 6 种构图全部通过 SVG 清洗；填充 / 偏移阴影 / 透明度进入组合 SVG；
+- 生图自检：切到生图模型 → textarea 从 101px 缩到 78px → 10 个风格选项 → 无图生图 → 素材框显示 AI 素材 → 自动切回排版并生成 3 套；参考图生图 / 原图不调用生图 / 独立生图 Key，0 异常；
 - 设计版式自检：mock 方案 A 新增引语板块 `quote2`（左上角 5% / 82%）并覆盖主标题坐标；方案 C 新增 `footer2` 页脚并与原页脚显示为「页脚 1 / 页脚 2」，页脚文字实际渲染；单元测试覆盖新增板块、绝对坐标、完整矩形互换与“新重叠回退”；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 经典导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
-> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，`cdp-body` 会验证海报空正文兜底，`cdp-free` 会调用 mock 生成 3 张 SVG，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
+> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，`cdp-body` 会验证海报空正文兜底，`cdp-free` 会调用 mock 生成 3 张 SVG，`cdp-image` 会调用 mock 图片接口走生图 → 素材 → 排版，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
 > `check-css.mjs` 会拦住 `color-mix()` / `color()` / `oklch()` 等 html2canvas 无法解析的写法——这正是上次导出失败的根因。
 
@@ -506,7 +556,9 @@ node scripts/export-matrix.mjs
 
 ## 已知边界 / 下一步
 
-- **不生成照片**：图片来自用户上传；没有图片模型，也不编造 URL；无图时渲染占位块；
+- **默认不生成照片**：图片来自用户上传；可选「生图模型」按风格生成或处理素材图，结果作为排版素材，不参与正文事实；
+- **生图依赖外部服务**：当前对接 OpenAI 兼容 `/images/generations` 与 `/images/edits`；火山方舟使用图片生成接口，**Seedance 是视频模型，图片请用 Seedream**；参考图编辑是否可用取决于所选模型；
+- **生图 Key 独立**：只存 sessionStorage；留空不会复用排版 Key；生图失败不会覆盖已有素材；
 - **没有后端与账号**：项目只存本机 IndexedDB，不存 Key，不做多人协作；
 - **对话是短上下文**：每次只带当前方案和最近 4 句，不做长期记忆；要整版重构，重新生成更稳；
 - **主题只作用于外壳**：纸张 / 海报的配色仍由 `color_preset` 决定，切主题不会改变导出图片的颜色；

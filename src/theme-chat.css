@@ -198,6 +198,15 @@
   color: #8a5a00;
 }
 
+[data-theme="light"] .image-meta {
+  background: #fffaeb;
+  border-color: #f0d28c;
+}
+
+[data-theme="light"] .image-meta-badge {
+  color: #8a5a00;
+}
+
 [data-theme="light"] .link-btn.danger:hover {
   color: #b42318;
 }

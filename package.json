@@ -1,13 +1,13 @@
 {
   "name": "front-page-lab",
   "private": true,
-  "version": "0.12.0",
+  "version": "0.13.0",
   "type": "module",
   "description": "头版智造局 — BYOK 智能报纸/海报生成器 demo（零构建）",
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "test": "node scripts/test-validate.mjs && node scripts/test-chat.mjs && node scripts/test-free.mjs && node scripts/test-icons.mjs && node scripts/check-css.mjs",
+    "test": "node scripts/test-validate.mjs && node scripts/test-chat.mjs && node scripts/test-free.mjs && node scripts/test-icons.mjs && node scripts/test-image.mjs && node scripts/check-css.mjs",
     "check:css": "node scripts/check-css.mjs",
     "test:matrix": "node scripts/export-matrix.mjs"
   },

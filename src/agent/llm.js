@@ -49,6 +49,45 @@ export const PROVIDERS = [
   },
 ]
 
+export const IMAGE_PROVIDERS = [
+  {
+    id: 'ark',
+    name: '火山方舟',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: 'doubao-seedream-5-0-260128',
+    supportsReference: true,
+    note: '图片生成用 Seedream；Seedance 是视频模型',
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI Images',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-image-1',
+    supportsReference: true,
+    note: '支持图片生成与参考图编辑',
+  },
+  {
+    id: 'custom',
+    name: '自定义 / 兼容接口',
+    baseUrl: '',
+    model: '',
+    supportsReference: false,
+    note: '兼容 /images/generations 的图片接口',
+  },
+]
+
+export function defaultImageSettings() {
+  const p = IMAGE_PROVIDERS[0]
+  return {
+    provider: p.id,
+    baseUrl: p.baseUrl,
+    model: p.model,
+    mode: 'proxy',
+    supportsReference: true,
+    size: 'auto',
+  }
+}
+
 export function defaultSettings() {
   const p = PROVIDERS[0]
   return {
@@ -57,6 +96,7 @@ export function defaultSettings() {
     model: p.model,
     mode: 'auto',
     vision: false,
+    image: defaultImageSettings(),
   }
 }
 

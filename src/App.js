@@ -26,6 +26,7 @@ import { buildSystemPrompt, buildUserPrompt } from './agent/systemPrompt.js'
 import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './agent/chat.js'
 import { cleanText, normalizeSchemes, rebuildLayout } from './agent/validate.js'
 import {
+  IMAGE_PROVIDERS,
   PROVIDERS,
   defaultSettings,
   requestArtworks,
@@ -33,8 +34,10 @@ import {
   requestEdit,
   requestSchemes,
 } from './agent/llm.js'
+import { buildImagePrompt, getImageStyle } from './config/imageStyles.js'
+import { requestImage, resolveImageSize } from './agent/image.js'
 import { chineseDate, clampText, shortDate } from './lib/format.js'
-import { DEMO_PHOTO, DEMO_PHOTO_2, readPhoto } from './lib/image.js'
+import { DEMO_PHOTO, DEMO_PHOTO_2, readGeneratedImage, readPhoto } from './lib/image.js'
 import { downloadDataUrl, printDataUrl } from './lib/exportPaper.js'
 import { FORMATS, buildLayout, resolveStyle } from './config/presets.js'
 import { buildDesignLayout } from './config/designLayout.js'
@@ -56,12 +59,19 @@ const LS_SETTINGS = 'fpl.settings.v1'
 const LS_THEME = 'fpl.theme.v1'
 const LS_MODE = 'fpl.mode.v1'
 const SS_KEY = 'fpl.apikey.v1'
+const SS_IMAGE_KEY = 'fpl.imagekey.v1'
 
 function loadSettings() {
   try {
     const raw = localStorage.getItem(LS_SETTINGS)
     if (!raw) return defaultSettings()
-    return { ...defaultSettings(), ...JSON.parse(raw) }
+    const parsed = JSON.parse(raw)
+    const defaults = defaultSettings()
+    return {
+      ...defaults,
+      ...parsed,
+      image: { ...defaults.image, ...(parsed.image || {}) },
+    }
   } catch {
     return defaultSettings()
   }
@@ -83,6 +93,14 @@ function loadKey() {
   }
 }
 
+function loadImageKey() {
+  try {
+    return sessionStorage.getItem(SS_IMAGE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
 function loadMode() {
   try {
     const saved = localStorage.getItem(LS_MODE)
@@ -98,9 +116,15 @@ export function App() {
   const [format, setFormat] = useState('newspaper')
   const [description, setDescription] = useState('')
   const [photo, setPhoto] = useState(null)
+  const [sourcePhoto, setSourcePhoto] = useState(null)
   const [photo2, setPhoto2] = useState(null)
+  const [imageMeta, setImageMeta] = useState(null)
   const [settings, setSettings] = useState(loadSettings)
   const [apiKey, setApiKey] = useState(loadKey)
+  const [imageApiKey, setImageApiKey] = useState(loadImageKey)
+  const [generationRole, setGenerationRole] = useState('layout')
+  const [imageStyle, setImageStyle] = useState('original')
+  const [autoLayout, setAutoLayout] = useState(true)
   const [schemes, setSchemes] = useState([])
   const [active, setActive] = useState(0)
   const [summary, setSummary] = useState('')
@@ -189,6 +213,15 @@ export function App() {
       /* ignore */
     }
   }, [apiKey])
+
+  useEffect(() => {
+    try {
+      if (imageApiKey) sessionStorage.setItem(SS_IMAGE_KEY, imageApiKey)
+      else sessionStorage.removeItem(SS_IMAGE_KEY)
+    } catch {
+      /* ignore */
+    }
+  }, [imageApiKey])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -280,6 +313,7 @@ export function App() {
         setDemoMode(true)
         if (!photo) {
           setPhoto(DEMO_PHOTO)
+          setSourcePhoto(DEMO_PHOTO)
           setPhoto2(DEMO_PHOTO_2)
         }
         setError('')
@@ -312,6 +346,7 @@ export function App() {
     setFormat(draft.format === 'poster' ? 'poster' : 'newspaper')
     setDescription(typeof draft.description === 'string' ? draft.description : '')
     setPhoto(draft.photo || null)
+    setSourcePhoto(draft.sourcePhoto || draft.photo || null)
     setPhoto2(draft.photo2 || null)
     setSummary(draft.summary || '')
     setMeta(
@@ -488,7 +523,9 @@ export function App() {
     setFormat('newspaper')
     setDescription('')
     setPhoto(null)
+    setSourcePhoto(null)
     setPhoto2(null)
+    setImageMeta(null)
     setSummary('')
     setWarnings([])
     setRecommended('B')
@@ -567,8 +604,9 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const generate = useCallback(async () => {
-    if (busy) return
+  const generate = useCallback(async (options = {}) => {
+    const activePhoto = 'photo' in options ? options.photo : photo
+    if (busy && !options.force) return
     if (!apiKey.trim()) {
       setError('还没有填写模型 API Key。请在左侧「03 / 模型」里填写，或点「用示例稿件预览」先看效果。')
       return
@@ -588,14 +626,14 @@ export function App() {
         system: designMode ? buildDesignSystemPrompt() : buildSystemPrompt({ date }),
         user: buildUserPrompt({
           description,
-          photoMeta: photo,
+          photoMeta: activePhoto,
           secondaryPhotoMeta: photo2,
           formatLabel: FORMATS[format].label,
           date,
           mode,
-          vision: Boolean(settings.vision && (photo || photo2)),
+          vision: Boolean(settings.vision && (activePhoto || photo2)),
         }),
-        photoDataUrl: photo?.dataUrl,
+        photoDataUrl: activePhoto?.dataUrl,
         photo2DataUrl: photo2?.dataUrl,
         signal: controller.signal,
       })
@@ -605,7 +643,7 @@ export function App() {
       let artFallback = false
       if (freeMode) {
         finalSchemes = attachFallbackArtworks(finalSchemes, description)
-        if (!photo) {
+        if (!activePhoto) {
           setBusyLabel('正在生成自由图案…')
           try {
             const artResult = await requestArtworks({
@@ -643,7 +681,7 @@ export function App() {
       applyResult({ ...normalized, schemes: finalSchemes, warnings: finalWarnings })
       setDemoMode(false)
       showToast(
-        freeMode && !photo
+        freeMode && !activePhoto
           ? artFallback
             ? '三套方案已生成，部分图案使用了兜底'
             : '三套自由方案与 SVG 图案已生成'
@@ -662,6 +700,106 @@ export function App() {
       setBusyLabel('')
     }
   }, [apiKey, applyResult, busy, description, designMode, format, freeMode, mode, photo, settings, showToast])
+
+  const generateImage = useCallback(async () => {
+    if (busy) return
+    const style = getImageStyle(imageStyle)
+    setError('')
+
+    if (style.id === 'original') {
+      if (!sourcePhoto) {
+        setError('「原图」需要先上传一张参考图；如果想直接生成，请选择一个生图风格。')
+        return
+      }
+      setPhoto(sourcePhoto)
+      setImageMeta(null)
+      setGenerationRole('layout')
+      showToast('已使用原图素材，已切回排版模型')
+      if (autoLayout) await generate({ photo: sourcePhoto, force: true })
+      return
+    }
+
+    if (!imageApiKey.trim()) {
+      setError('请填写「生图 Key」。生图 Key 独立保存，不会复用排版模型的 Key。')
+      return
+    }
+    if (!settings.image?.model?.trim()) {
+      setError('请填写生图模型名，例如火山方舟的 Seedream 模型 ID。')
+      return
+    }
+    if (settings.image.provider === 'ark' && /seedance/i.test(settings.image.model)) {
+      setError('Seedance 是视频生成模型，当前流程只接收图片。请改用火山方舟 Seedream 图片模型。')
+      return
+    }
+    if (!description.trim() && !sourcePhoto) {
+      setError('请描述画面，或先上传一张参考图，再生图。')
+      return
+    }
+
+    setBusy(true)
+    setBusyLabel(`正在用「${style.label}」生成素材图…`)
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timer = setTimeout(() => controller.abort(), 240_000)
+
+    try {
+      const useReference = Boolean(sourcePhoto && settings.image?.supportsReference)
+      const prompt = buildImagePrompt({
+        description,
+        styleId: style.id,
+        hasReference: useReference,
+      })
+      const result = await requestImage({
+        imageApiKey,
+        settings: settings.image,
+        prompt,
+        size: resolveImageSize(settings.image, format),
+        referenceDataUrl: useReference ? sourcePhoto.dataUrl : null,
+        signal: controller.signal,
+      })
+      const generated = await readGeneratedImage(result.dataUrl, `AI-${style.label}.png`)
+      setPhoto(generated)
+      setImageMeta({
+        styleId: style.id,
+        styleLabel: style.label,
+        model: settings.image.model,
+        prompt,
+        generatedAt: Date.now(),
+      })
+      setGenerationRole('layout')
+      setBusy(false)
+      setBusyLabel('')
+      showToast(`素材图已生成，已切回排版模型（${style.label}）`)
+      if (autoLayout) await generate({ photo: generated, force: true })
+    } catch (err) {
+      setError(
+        err.name === 'AbortError'
+          ? '生图超时（240 秒）。请检查网络，或换一个生图模型重试。'
+          : err.message || '生图失败',
+      )
+    } finally {
+      clearTimeout(timer)
+      abortRef.current = null
+      setBusy(false)
+      setBusyLabel('')
+    }
+  }, [
+    autoLayout,
+    busy,
+    description,
+    format,
+    generate,
+    imageApiKey,
+    imageStyle,
+    settings.image,
+    showToast,
+    sourcePhoto,
+  ])
+
+  const handleGenerate = useCallback(() => {
+    if (generationRole === 'image') return generateImage()
+    return generate()
+  }, [generate, generateImage, generationRole])
 
   const relayoutAll = useCallback(
     (hasSub) => {
@@ -702,7 +840,9 @@ export function App() {
           relayoutAll(true)
           showToast('子图已载入，版式已重排')
         } else {
+          setSourcePhoto(next)
           setPhoto(next)
+          setImageMeta(null)
           showToast('照片已载入')
         }
         setError('')
@@ -712,6 +852,21 @@ export function App() {
     },
     [relayoutAll, showToast],
   )
+
+  const removePhoto = useCallback(() => {
+    setPhoto(null)
+    setSourcePhoto(null)
+    setImageMeta(null)
+    setError('')
+    showToast('素材已移除')
+  }, [showToast])
+
+  const restoreOriginal = useCallback(() => {
+    if (!sourcePhoto) return
+    setPhoto(sourcePhoto)
+    setImageMeta(null)
+    showToast('已恢复原图')
+  }, [showToast, sourcePhoto])
 
   const removeSecondary = useCallback(() => {
     if (captionAbortRef.current) {
@@ -1139,7 +1294,12 @@ export function App() {
     showToast('自由模式：无图时由模型生成 SVG 线条图案')
   }, [description, schemes, showToast])
 
-  const modelLabel = `${provider.name} · ${settings.model}`
+  const imageProvider =
+    IMAGE_PROVIDERS.find((p) => p.id === settings.image?.provider) || IMAGE_PROVIDERS[0]
+  const modelLabel =
+    generationRole === 'image'
+      ? `${imageProvider.name} · ${settings.image?.model || '未设置'}`
+      : `${provider.name} · ${settings.model}`
 
   return html`
     <div class="app">
@@ -1195,6 +1355,7 @@ export function App() {
         <${InputRail}
           mode=${mode}
           photo=${photo}
+          imageMeta=${imageMeta}
           description=${description}
           setDescription=${setDescription}
           format=${format}
@@ -1203,12 +1364,22 @@ export function App() {
           setSettings=${setSettings}
           apiKey=${apiKey}
           setApiKey=${setApiKey}
+          imageApiKey=${imageApiKey}
+          setImageApiKey=${setImageApiKey}
+          generationRole=${generationRole}
+          setGenerationRole=${setGenerationRole}
+          imageStyle=${imageStyle}
+          setImageStyle=${setImageStyle}
+          autoLayout=${autoLayout}
+          setAutoLayout=${setAutoLayout}
           busy=${busy}
           busyLabel=${busyLabel}
-          onGenerate=${generate}
+          onGenerate=${handleGenerate}
           onDemo=${() => loadDemo({ targetView: 'gallery' })}
           onPhotoFile=${handlePhotoFile}
-          onRemovePhoto=${() => setPhoto(null)}          error=${error}
+          onRemovePhoto=${removePhoto}
+          onRestoreOriginal=${restoreOriginal}
+          error=${error}
           onDismissError=${() => setError('')}
         />
 

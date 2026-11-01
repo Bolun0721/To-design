@@ -389,6 +389,50 @@ select {
   white-space: nowrap;
 }
 
+.image-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 6px 8px;
+  border: 1px solid rgba(200, 162, 74, 0.28);
+  background: rgba(200, 162, 74, 0.06);
+}
+
+.image-meta-badge {
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: #d8bf83;
+}
+
+.rail-image-mode .desc-field {
+  height: 78px;
+  min-height: 78px;
+  resize: vertical;
+}
+
+.model-role-select {
+  margin-bottom: 10px;
+}
+
+.image-style-field {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.image-style-note {
+  margin: 6px 0 0;
+  color: var(--muted-2);
+  font-size: 8.5px;
+  line-height: 1.65;
+}
+
+.image-auto-layout {
+  margin-top: 9px;
+}
+
 .link-btn {
   background: none;
   border: 0;

@@ -39,13 +39,13 @@ function sendJson(res, code, obj) {
   res.end(JSON.stringify(obj))
 }
 
-function readBody(req) {
+function readBody(req, maxBytes = 8 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = []
     let size = 0
     req.on('data', (chunk) => {
       size += chunk.length
-      if (size > 8 * 1024 * 1024) {
+      if (size > maxBytes) {
         reject(new Error('请求体过大'))
         req.destroy()
         return
@@ -122,9 +122,141 @@ async function handleRelay(req, res) {
   }
 }
 
+async function handleImageRelay(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
+  if (!req.headers.authorization) return sendJson(res, 400, { error: '缺少 Authorization 头' })
+
+  let payload
+  try {
+    payload = JSON.parse(await readBody(req, 24 * 1024 * 1024))
+  } catch (err) {
+    return sendJson(res, 400, { error: `生图请求体不合法：${err.message}` })
+  }
+
+  const {
+    provider = 'custom',
+    baseUrl,
+    model,
+    prompt,
+    size = '1024x1024',
+    reference = null,
+  } = payload
+  if (!model || !prompt) return sendJson(res, 400, { error: '缺少 model 或 prompt' })
+
+  let base
+  try {
+    const parsed = new URL(String(baseUrl || ''))
+    if (parsed.protocol !== 'https:') throw new Error('仅支持 https')
+    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)) {
+      throw new Error('目标不能是本机')
+    }
+    base = parsed.toString().replace(/\/+$/, '').replace(/\/images\/(generations|edits)$/, '')
+  } catch (err) {
+    return sendJson(res, 400, { error: `不合法的生图地址：${err.message}` })
+  }
+
+  const headers = { authorization: req.headers.authorization }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 240_000)
+
+  try {
+    let upstream
+    if (provider === 'openai' && reference) {
+      const match = String(reference).match(/^data:([^;]+);base64,(.*)$/s)
+      if (!match) return sendJson(res, 400, { error: '参考图格式不正确' })
+      const form = new FormData()
+      form.append('model', model)
+      form.append('prompt', prompt)
+      form.append('size', size)
+      form.append(
+        'image',
+        new Blob([Buffer.from(match[2], 'base64')], { type: match[1] }),
+        'reference.png',
+      )
+      upstream = await fetch(`${base}/images/edits`, {
+        method: 'POST',
+        headers,
+        body: form,
+        signal: controller.signal,
+      })
+    } else {
+      headers['content-type'] = 'application/json'
+      const body = {
+        model,
+        prompt,
+        n: 1,
+        size,
+        response_format: 'b64_json',
+      }
+      if (provider === 'ark') {
+        body.watermark = false
+        if (reference) body.image = reference
+      } else if (provider === 'custom' && reference) {
+        body.image = reference
+      }
+      upstream = await fetch(`${base}/images/generations`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+    }
+
+    const text = await upstream.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+    if (!upstream.ok) {
+      const detail =
+        data?.error?.message || data?.error || data?.message || String(data).slice(0, 400)
+      return sendJson(res, upstream.status, { error: `上游生图失败：${detail}` })
+    }
+
+    const item = Array.isArray(data?.data) ? data.data[0] : data
+    if (item?.b64_json) {
+      const b64 = item.b64_json
+      const mime = b64.startsWith('iVBOR')
+        ? 'image/png'
+        : b64.startsWith('UklG')
+          ? 'image/webp'
+          : b64.startsWith('R0lG')
+            ? 'image/gif'
+            : 'image/jpeg'
+      return sendJson(res, 200, {
+        dataUrl: `data:${mime};base64,${b64}`,
+        usage: data.usage || null,
+      })
+    }
+    const imageUrl = item?.url || data?.url
+    if (!imageUrl) return sendJson(res, 502, { error: '生图接口没有返回图片' })
+
+    const imageRes = await fetch(imageUrl, { signal: controller.signal })
+    if (!imageRes.ok) return sendJson(res, 502, { error: `生图结果下载失败（${imageRes.status}）` })
+    const buffer = Buffer.from(await imageRes.arrayBuffer())
+    if (buffer.length > 20 * 1024 * 1024) {
+      return sendJson(res, 502, { error: '生图结果超过 20MB' })
+    }
+    const mime = imageRes.headers.get('content-type') || 'image/png'
+    return sendJson(res, 200, {
+      dataUrl: `data:${mime.split(';')[0]};base64,${buffer.toString('base64')}`,
+      usage: data.usage || null,
+    })
+  } catch (err) {
+    return sendJson(res, 502, {
+      error: `生图中继失败：${err.name === 'AbortError' ? '超时（240s）' : err.message}`,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.url.startsWith('/api/llm')) return await handleRelay(req, res)
+    if (req.url.startsWith('/api/image')) return await handleImageRelay(req, res)
 
     const candidates = resolveStatic(req.url)
     if (!candidates.length) return sendJson(res, 404, { error: 'Not found' })

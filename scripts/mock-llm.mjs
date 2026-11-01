@@ -3,9 +3,16 @@
  * 运行：node scripts/mock-llm.mjs  →  http://127.0.0.1:8787/v1/chat/completions
  */
 import http from 'node:http'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { buildDemoPayload } from '../src/agent/demoData.js'
 
 const PORT = 8787
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+const IMAGE_FIXTURE = fs
+  .readFileSync(path.join(ROOT, 'public', 'demo', 'coffee.jpg'))
+  .toString('base64')
 
 const payload = buildDemoPayload({ date: '2026年10月20日', format: 'newspaper' })
 payload.summary = 'MOCK 模型已返回三套方案，推荐 B：标题最有力。'
@@ -21,6 +28,23 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
     res.end()
+    return
+  }
+
+  if (req.url.startsWith('/v1/images/')) {
+    console.log(
+      `[mock-llm] ${req.method} ${req.url} image model=${req.headers['x-mock-model'] || '-'} key=${
+        req.headers.authorization ? 'present' : 'missing'
+      }`,
+    )
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(
+      JSON.stringify({
+        created: Math.floor(Date.now() / 1000),
+        data: [{ b64_json: IMAGE_FIXTURE }],
+        usage: { generated_images: 1 },
+      }),
+    )
     return
   }
 

@@ -1,0 +1,15 @@
+{
+  "version": "v0.13.0",
+  "date": "2026-11-01",
+  "gitTag": "v0.13.0",
+  "description": "生图模型 + 排版模型双阶段：原图 + 9 风格、独立生图 Key、素材框、自动切回排版",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "artPrompt.js",
+    "imagePrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

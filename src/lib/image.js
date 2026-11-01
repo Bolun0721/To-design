@@ -61,6 +61,30 @@ export async function readPhoto(file) {
   }
 }
 
+/** 把生图接口返回的 data URL 归一化为可排版的相片对象 */
+export async function readGeneratedImage(dataUrl, name = 'ai-image.png') {
+  if (!dataUrl) throw new Error('生图没有返回图片')
+  const img = await loadImage(dataUrl)
+  const maxSide = 1800
+  const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight))
+  let out = dataUrl
+  if (ratio < 1) {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(img.naturalWidth * ratio)
+    canvas.height = Math.round(img.naturalHeight * ratio)
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    out = canvas.toDataURL('image/jpeg', 0.92)
+  }
+  return {
+    dataUrl: out,
+    width: img.naturalWidth,
+    height: img.naturalHeight,
+    name,
+    source: 'ai',
+  }
+}
+
 /**
  * 把图片处理（黑白半调 / 双色调）烘焙进像素，供导出使用。
  * 预览用 CSS filter，html2canvas 不渲染 filter，所以导出前换成烘焙图。
