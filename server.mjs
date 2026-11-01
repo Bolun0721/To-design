@@ -9,7 +9,7 @@ import http from 'node:http'
 import fs from 'node:fs/promises'
 import { createReadStream } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 5173)
@@ -256,40 +256,69 @@ async function handleImageRelay(req, res) {
   }
 }
 
-const server = http.createServer(async (req, res) => {
-  try {
-    if (req.url.startsWith('/api/llm')) return await handleRelay(req, res)
-    if (req.url.startsWith('/api/image')) return await handleImageRelay(req, res)
+export function createAppServer() {
+  return http.createServer(async (req, res) => {
+    try {
+      if (req.url.startsWith('/api/llm')) return await handleRelay(req, res)
+      if (req.url.startsWith('/api/image')) return await handleImageRelay(req, res)
 
-    const candidates = resolveStatic(req.url)
-    if (!candidates.length) return sendJson(res, 404, { error: 'Not found' })
+      const candidates = resolveStatic(req.url)
+      if (!candidates.length) return sendJson(res, 404, { error: 'Not found' })
 
-    let file = null
-    let stat = null
-    for (const candidate of candidates) {
-      try {
-        const s = await fs.stat(candidate)
-        if (s.isFile()) {
-          file = candidate
-          stat = s
-          break
+      let file = null
+      let stat = null
+      for (const candidate of candidates) {
+        try {
+          const s = await fs.stat(candidate)
+          if (s.isFile()) {
+            file = candidate
+            stat = s
+            break
+          }
+        } catch {
+          /* try next */
         }
-      } catch {
-        /* try next */
       }
+      if (!file) return sendJson(res, 404, { error: 'Not found' })
+
+      res.statusCode = 200
+      res.setHeader('content-type', MIME[path.extname(file).toLowerCase()] || 'application/octet-stream')
+      res.setHeader('cache-control', 'no-store')
+      createReadStream(file).pipe(res)
+    } catch (err) {
+      sendJson(res, 500, { error: err.message })
     }
-    if (!file) return sendJson(res, 404, { error: 'Not found' })
+  })
+}
 
-    res.statusCode = 200
-    res.setHeader('content-type', MIME[path.extname(file).toLowerCase()] || 'application/octet-stream')
-    res.setHeader('cache-control', 'no-store')
-    createReadStream(file).pipe(res)
-  } catch (err) {
-    sendJson(res, 500, { error: err.message })
-  }
-})
+/** 启动服务器；port=0 时由系统分配端口。 */
+export function startAppServer({ port = PORT, host = HOST } = {}) {
+  return new Promise((resolve, reject) => {
+    const server = createAppServer()
+    const onError = (error) => {
+      server.off('error', onError)
+      reject(error)
+    }
+    server.once('error', onError)
+    server.listen(port, host, () => {
+      server.off('error', onError)
+      resolve({ server, host, port: server.address().port })
+    })
+  })
+}
 
-server.listen(PORT, HOST, () => {
-  console.log(`\n  头版智造局 · FRONT PAGE LAB`)
-  console.log(`  → http://${HOST}:${PORT}\n`)
-})
+const isMain =
+  process.argv[1] &&
+  pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
+
+if (isMain) {
+  startAppServer()
+    .then(({ host, port }) => {
+      console.log(`\n  头版智造局 · FRONT PAGE LAB`)
+      console.log(`  → http://${host}:${port}\n`)
+    })
+    .catch((err) => {
+      console.error(`服务器启动失败：${err.message}`)
+      process.exitCode = 1
+    })
+}

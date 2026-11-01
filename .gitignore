@@ -8,3 +8,7 @@ Thumbs.db
 .DS_Store
 *.zip
 .package-test/
+dist-desktop/
+.desktop-userdata*/
+.portable-temp/
+.electron-test*.log
