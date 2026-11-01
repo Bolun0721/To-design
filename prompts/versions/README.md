@@ -74,6 +74,15 @@ prompts/
       imagePrompt.js        # 原图 + 9 种生图风格提示词
       designSkill.js
       captions.js
+    v0.14.0/
+      manifest.json
+      systemPrompt.js
+      chat.js
+      designPrompt.js       # 英文艺术字标题 + 6 款版式字体
+      artPrompt.js
+      imagePrompt.js
+      designSkill.js
+      captions.js
 ```
 
 图标原始参考在 `prompts/references/emoji-outline/`，由 `scripts/import-icon-library.mjs` 生成 `src/config/icon-library.generated.js`；鱼、星星、彩虹和自定义图标在 `icon-library.overrides.js` 中手改。
@@ -91,6 +100,7 @@ prompts/
 | `v0.11.0` | 2026-10-28 | 94 枚图标库 + 象征表 + 九套图案配方；模型从图标库组合并追加元素；修正鱼/星星/彩虹 |
 | `v0.12.0` | 2026-10-28 | 海报也写 1–2 段报纸备用正文；空正文兜底并显示生成提示 |
 | `v0.13.0` | 2026-11-01 | 生图模型 + 排版模型双阶段；原图 + 9 风格；独立生图 Key |
+| `v0.14.0` | 2026-11-01 | 设计 / 自由模式英文艺术字标题与 6 款版式字体 |
 
 ## 新增版本
 

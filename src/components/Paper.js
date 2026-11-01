@@ -375,7 +375,16 @@ export function Paper({
           </div>
         `}
         ${block.type === 'headline' &&
-        html`<h1 class="headline" data-edit=${blockEditKey || 'headline'}>${customText ? block.text : content.headline}</h1>`}
+        html`
+          ${st.artFont &&
+          content.english_title &&
+          html`
+            <div class="headline-art" data-art-font=${st.artFont}>
+              ${content.english_title}
+            </div>
+          `}
+          <h1 class="headline" data-edit=${blockEditKey || 'headline'}>${customText ? block.text : content.headline}</h1>
+        `}
         ${block.type === 'subhead' &&
         html`<p class="subhead" data-edit=${blockEditKey || 'subhead'}>${customText ? block.text : content.subhead}</p>`}
         ${block.type === 'byline' &&

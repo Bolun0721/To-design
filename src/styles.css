@@ -3,6 +3,37 @@
    工作室外壳（深色）+ 纸张版式（浅色，完全由预设驱动）
    ========================================================================== */
 
+@font-face {
+  font-family: "FPL Constructivism";
+  src: url("/fonts/fpl-constructivism.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "FPL Bauhaus";
+  src: url("/fonts/fpl-bauhaus.otf") format("opentype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "FPL Nasa";
+  src: url("/fonts/fpl-nasa.otf") format("opentype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "FPL Stencil";
+  src: url("/fonts/fpl-stencil.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "FPL Swiss";
+  src: url("/fonts/fpl-swiss.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "FPL Cassette";
+  src: url("/fonts/fpl-cassette.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   --bg: #0b0b0c;
   --panel: #141416;
@@ -2337,6 +2368,56 @@ body.is-block-dragging {
   max-height: 2.12em;
   overflow: hidden;
   word-break: break-word;
+}
+
+.headline-art {
+  display: block;
+  margin: 0 0 0.28em;
+  font-family: var(--art-font, "FPL Swiss");
+  font-size: calc(var(--headline-size) * 0.34);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  max-height: 1.1em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.headline-art[data-art-font="constructivism"] {
+  font-family: "FPL Constructivism";
+  letter-spacing: 0.04em;
+}
+.headline-art[data-art-font="bauhaus"] {
+  font-family: "FPL Bauhaus";
+  letter-spacing: 0.1em;
+}
+.headline-art[data-art-font="nasa_punk"] {
+  font-family: "FPL Nasa";
+  letter-spacing: 0.12em;
+}
+.headline-art[data-art-font="de_stijl"] {
+  font-family: "FPL Stencil";
+  letter-spacing: 0.06em;
+}
+.headline-art[data-art-font="swiss_style"] {
+  font-family: "FPL Swiss";
+  letter-spacing: 0.02em;
+}
+.headline-art[data-art-font="cassette_futurism"] {
+  font-family: "FPL Cassette";
+  letter-spacing: 0.16em;
+}
+
+.variant-tabloid_bold .headline-art,
+.variant-classic_broadsheet .headline-art {
+  color: var(--accent);
+}
+
+.format-poster .headline-art {
+  font-size: calc(var(--headline-size) * 0.42);
+  max-height: 1.2em;
 }
 
 .subhead {

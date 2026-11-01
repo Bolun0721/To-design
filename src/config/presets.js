@@ -740,5 +740,6 @@ export function resolveStyle(scheme) {
     columns: Number(style.columns) || variant.defaultColumns,
     headlineScale: style.headline_scale || variant.defaultHeadlineScale,
     imageTreatment: style.image_treatment || variant.defaultTreatment,
+    artFont: style.art_font || '',
   }
 }

@@ -151,6 +151,12 @@ result.footerLabels = await evaluate(
 result.footerText = await evaluate(
   `document.querySelectorAll('.scheme-card')[2]?.querySelector('[data-block-id="footer2"] .paper-footer span')?.innerText || ''`,
 )
+result.artTitles = await evaluate(
+  `[...document.querySelectorAll('.scheme-card .headline-art')].map((n) => n.innerText.trim())`,
+)
+result.artFonts = await evaluate(
+  `[...document.querySelectorAll('.scheme-card .headline-art')].map((n) => getComputedStyle(n).fontFamily)`,
+)
 
 await fs.mkdir(OUT, { recursive: true })
 const shot = await call('Page.captureScreenshot', { format: 'png' })
@@ -189,6 +195,13 @@ if (!result.footerLabels.includes('页脚 1') || !result.footerLabels.includes('
 if (!result.footerText.includes('第二行页脚')) throw new Error(`新增页脚内容异常：${result.footerText}`)
 if (result.standardMode !== 'standard' || !result.standardPack) throw new Error('切回标准模式后风格包没有恢复')
 if (result.storedStandard !== 'standard') throw new Error('标准模式没有持久化')
+if (result.artTitles.length !== 3) throw new Error('三套设计模式没有全部渲染英文艺术字标题')
+if (!result.artTitles.includes('GEOMETRIC DAILY')) throw new Error('缺少包豪斯英文标题')
+if (!result.artTitles.includes('THE QUIET HOUR')) throw new Error('缺少瑞士英文标题')
+if (!result.artTitles.includes('AFTER HOURS')) throw new Error('缺少卡带英文标题')
+if (!result.artFonts.some((font) => /FPL Bauhaus/i.test(font))) throw new Error('包豪斯字体未加载')
+if (!result.artFonts.some((font) => /FPL Swiss/i.test(font))) throw new Error('瑞士字体未加载')
+if (!result.artFonts.some((font) => /FPL Cassette/i.test(font))) throw new Error('卡带字体未加载')
 if (result.exceptions) throw new Error('页面存在未捕获异常')
 
 await call('Browser.close').catch(() => {})

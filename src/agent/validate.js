@@ -13,6 +13,7 @@ import {
   buildLayout,
 } from '../config/presets.js'
 import { normalizeDesignLayout } from '../config/designLayout.js'
+import { ART_FONTS, ART_FONT_IDS, artFontForVariant } from '../config/artFonts.js'
 import { clampText, charLen, chineseDate } from '../lib/format.js'
 
 const SLOTS = [
@@ -56,6 +57,15 @@ export function cleanText(value) {
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** 艺术字标题只允许英文 / 数字 / ASCII 标点，避免中文落到不支持的字形上。 */
+function cleanEnglishTitle(value) {
+  return String(value || '')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
 }
 
 function firstUnused(preferred, used, fallback) {
@@ -137,6 +147,31 @@ export function normalizeSchemes(
 
     const content = raw?.content || {}
 
+    const englishTitle = designMode
+      ? clampText(cleanEnglishTitle(content.english_title), 42)
+      : ''
+    let artFont = ''
+    if (designMode && englishTitle) {
+      const preferred = artFontForVariant(variant)
+      const requested = String(rawStyle.art_font || '')
+      if (requested && !ART_FONT_IDS.includes(requested)) {
+        warnings.push(`方案 ${slot.id} 的艺术字体不在白名单，已按模板回退。`)
+      }
+      if (requested && ART_FONTS[requested] && ART_FONTS[requested].variant !== variant) {
+        warnings.push(`方案 ${slot.id} 的艺术字体与版式不匹配，已按模板回退。`)
+      }
+      artFont =
+        ART_FONT_IDS.includes(requested) && ART_FONTS[requested].variant === variant
+          ? requested
+          : preferred
+      if (!artFont) {
+        warnings.push(`方案 ${slot.id} 的版式没有匹配艺术字体，英文标题不显示艺术字。`)
+      }
+    }
+    if (designMode && content.english_title && charLen(cleanEnglishTitle(content.english_title)) > 42) {
+      warnings.push(`方案 ${slot.id} 的英文标题超过 42 字符，已截断。`)
+    }
+
     let headline = clampText(cleanText(content.headline), 15)
     if (!headline) {
       headline = '未命名头版'
@@ -217,10 +252,12 @@ export function normalizeSchemes(
         headline_scale: scale,
         image_treatment: treatment,
         accent_color: COLOR_PRESETS[preset].accent,
+        art_font: artFont,
       },
       content: {
         headline,
         subhead,
+        english_title: englishTitle,
         body_blocks: bodyBlocks,
         caption,
         caption_secondary: captionSecondary,

@@ -65,6 +65,28 @@ assert.ok(
 const repairedStandard = normalizeSchemes(freePayload, { date, format: 'newspaper' })
 assert.notEqual(repairedStandard.schemes[1].layout_variant, 'classic_broadsheet')
 assert.equal(repairedStandard.schemes[1].content.body_blocks.length > 0, true)
+
+const artPayload = JSON.parse(JSON.stringify(demo))
+artPayload.schemes[0].layout_variant = 'bauhaus'
+artPayload.schemes[0].style = { ...(artPayload.schemes[0].style || {}), art_font: 'bauhaus' }
+artPayload.schemes[0].content.english_title = 'GEOMETRIC DAILY'
+const art = normalizeSchemes(artPayload, { date, format: 'newspaper', mode: 'design' })
+assert.equal(art.schemes[0].style.art_font, 'bauhaus')
+assert.equal(art.schemes[0].content.english_title, 'GEOMETRIC DAILY')
+
+const mismatchedArt = JSON.parse(JSON.stringify(artPayload))
+mismatchedArt.schemes[0].style.art_font = 'swiss_style'
+const mismatched = normalizeSchemes(mismatchedArt, {
+  date,
+  format: 'newspaper',
+  mode: 'design',
+})
+assert.equal(mismatched.schemes[0].style.art_font, 'bauhaus')
+assert.ok(mismatched.warnings.some((warning) => warning.includes('艺术字体与版式不匹配')))
+
+const standardArt = normalizeSchemes(artPayload, { date, format: 'newspaper' })
+assert.equal(standardArt.schemes[0].content.english_title, '')
+assert.equal(standardArt.schemes[0].style.art_font, '')
 console.log('✓ design mode keeps free template/color choices and backfills a newspaper body')
 
 const customScheme = designed.schemes[0]

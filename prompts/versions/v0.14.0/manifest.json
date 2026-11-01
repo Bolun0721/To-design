@@ -1,0 +1,15 @@
+{
+  "version": "v0.14.0",
+  "date": "2026-11-01",
+  "gitTag": "v0.14.0",
+  "description": "设计/自由模式艺术英文字体：6 款字体、英文装饰标题、版式映射与校验",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "artPrompt.js",
+    "imagePrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

@@ -8,6 +8,7 @@ import {
   HEADLINE_SCALES,
   VARIANTS,
 } from '../config/presets.js'
+import { ART_FONTS, ART_FONT_TABLE_TEXT } from '../config/artFonts.js'
 
 const TEMPLATE_LIST = Object.values(VARIANTS)
   .map(
@@ -40,11 +41,13 @@ const SCHEMA = `{
       "style": {
         "columns": 1,
         "headline_scale": "medium",
-        "image_treatment": "original"
+        "image_treatment": "original",
+        "art_font": "none"
       },
       "content": {
         "headline": "主标题，≤15 字",
         "subhead": "副标题，≤25 字",
+        "english_title": "英文装饰标题，2–5 词，≤42 字符，可留空",
         "body_blocks": [{ "type": "paragraph", "text": "正文段落，至少 1 段；海报也不输出空数组" }],
         "caption": "主图图注，≤30 字",
         "caption_secondary": "子图图注，多图时可选，≤30 字",
@@ -108,14 +111,30 @@ ${PRESET_LIST}
 
 ${FONT_LIST}
 
+艺术字白名单（只用于英文装饰标题，不用于中文）：
+
+${ART_FONT_TABLE_TEXT}
+
 可调参数：
 
 - style.columns：1 / 2 / 3
 - style.headline_scale：${Object.keys(HEADLINE_SCALES).join(' / ')}
 - style.image_treatment：original / halftone_mono / duotone
+- style.art_font：none 或艺术字 id；只允许与 layout_variant 对应的 id
+- content.english_title：英文装饰标题，2–5 个英文词，≤42 字符，可留空
 - body_blocks：设计模式允许 1–4 段，最多约 320 字；海报也至少写 1 段，不要输出空数组
 - layout_variant / color_preset / font_pairing 必须是上面白名单中的 id
 - 不要输出 custom_options、自定义坐标、HTML、CSS、图片 URL 或其他未声明字段
+
+# 英文艺术字标题
+
+- 艺术字只支持英文字母、数字和基本标点，**不能用于中文标题**；中文 headline 继续使用原来的 font_pairing。
+- 艺术字是装饰性的英文 kicker / 小标题，不是中文标题的逐字翻译，也不是正文；2–5 个词，短、硬、可读。
+- 只在版式有匹配字体时使用：constructivism / bauhaus / nasa_punk / de_stijl / swiss_style / cassette_futurism。
+- classic_broadsheet / tabloid_bold / minimal_masthead 没有对应艺术字：art_font 必须为 none，english_title 可留空。
+- 艺术字与版式必须对应，例如 bauhaus 用 bauhaus、卡带未来用 cassette_futurism，不要跨风格硬套。
+- 不要为了用艺术字而编造品牌名、真实机构、活动名或英文新闻；可以写氛围短句。
+- 三套不需要都用英文标题；优先给最需要视觉记忆点的一套使用。
 
 # 输入
 

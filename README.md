@@ -25,6 +25,7 @@
 12. 顶栏新增 **标准模板 / 设计模式 / 自由模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包；自由模式在无照片时从 94 枚 24×24 图标库组合 SVG 线条图案。
 13. 模型卡片新增 **排版模型 / 生图模型** 用途切换：生图模型按「原图 + 9 种风格」生成或处理素材图，写入素材框后自动切回排版模型生成 3 套版式；生图 Key 独立保存，不复用排版 Key。
 14. 导航栏新增 **帮助**：推荐 DeepSeek V4.1 Flash + 火山方舟 Seedream 4.0，附 API 申请步骤、模型填写表、常见错误和官网链接。
+15. 设计 / 自由模式支持 **6 款艺术英文字体**：构成主义 / 包豪斯 / NASA 朋克 / 风格派 / 瑞士风格 / 卡带未来；模型生成英文装饰标题并自动匹配版式字体。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -87,6 +88,31 @@ http://127.0.0.1:5173/?demo=1&theme=light          # 亮色 + 示例
 > 火山方舟图片请使用 **Seedream**；**Seedance 是视频模型**，不返回图片。
 
 ![帮助弹窗](docs/21-help.png)
+
+## 艺术英文字体（设计 / 自由模式）
+
+设计模式和自由模式可以生成一条 **英文装饰标题**，并用与版式匹配的艺术字字体渲染。它只用于英文，不替换中文标题。
+
+| 版式 | `style.art_font` | 字体 |
+|---|---|---|
+| 构成主义 | `constructivism` | FPL Constructivism |
+| 包豪斯 | `bauhaus` | FPL Bauhaus |
+| NASA 朋克 | `nasa_punk` | FPL Nasa |
+| 风格派 | `de_stijl` | FPL Stencil |
+| 瑞士风格 | `swiss_style` | FPL Swiss |
+| 卡带未来 | `cassette_futurism` | FPL Cassette |
+
+规则：
+
+- 英文标题 2–5 个词、≤42 字符，只允许英文字母 / 数字 / 基本标点；
+- 字体必须与版式对应；经典大报 / 小报冲击 / 极简报头没有对应艺术字，不显示艺术英文；
+- 中文 `headline` 仍使用原来的 `font_pairing`，不会被艺术字影响；
+- 前端会二次校验：不匹配的字体回退到模板对应字体；缺失匹配字体时不渲染艺术字；
+- 字体只用于装饰性 kicker / 小标题，不生成品牌名、真实机构或英文假新闻。
+
+字体文件在 `public/fonts/`，通过 `@font-face` 加载；导出前会等待 `document.fonts.ready`。
+
+![艺术字体](docs/22-art-fonts.png)
 
 ## 接入真实模型（BYOK）
 
@@ -334,7 +360,7 @@ Base URL：https://ark.cn-beijing.volces.com/api/v3
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -425,12 +451,13 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
   └─ config/designLayout.js     设计版式：增删板块、绝对坐标、完整矩形互换、重叠回退
   └─ config/icon-library.js     94 枚 24×24 图标库（文档 79 + 自定义 + 补充）
   └─ config/imageStyles.js      生图：原图 + 9 种模板风格提示词
+  └─ config/artFonts.js         6 款艺术英文字体与版式映射
   └─ config/symbol-map.js       抽象概念 → 图标象征表
   └─ config/pattern-styles.js   九套模板的线宽 / 填充 / 阴影 / 透明度配方
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
   └─ lib/                       image / exportPaper / drafts / svg / composeArtwork
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
-  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.13.0）
+  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.14.0）
 server.mjs                      静态服务 + /api/llm /api/image 极薄中继（零依赖）
 ```
 
@@ -469,6 +496,7 @@ server.mjs                      静态服务 + /api/llm /api/image 极薄中继�
 │   ├── config/designLayout.js # 设计模式自定义板块、坐标、互换与重叠保护
 │   ├── config/icon-library.js # 94 枚 24×24 图标库
 │   ├── config/imageStyles.js  # 生图风格提示词
+│   ├── config/artFonts.js     # 艺术英文字体映射
 │   ├── config/symbol-map.js   # 抽象概念 → 图标象征表
 │   ├── config/pattern-styles.js # 九套模板图案配方
 │   ├── config/stylePacks.js   # 3 组风格包与包切换
@@ -477,6 +505,7 @@ server.mjs                      静态服务 + /api/llm /api/image 极薄中继�
 ├── public/
 │   ├── demo/coffee.jpg        # 程序化生成的示例照片（主图）
 │   ├── demo/coffee-2.jpg      # 程序化生成的示例照片（子图）
+│   ├── fonts/                 # 6 款艺术英文字体（仅用于英文装饰标题）
 │   └── vendor/                # preact / htm / html2canvas（浏览器直接加载）
 ├── scripts/
 │   ├── launch-demo.bat        # Windows 一键启动（桌面 .bat 调用）
@@ -555,7 +584,7 @@ node scripts/export-matrix.mjs
 - 风格包：经典三式 → 几何三式 → 系统三式 → 回到经典，三套内容摘要保持不变；六种新模板全部进入双图模式，0 异常；
 - 九套模板 × 报纸/海报（双图）：**18/18 导出通过**，0 未捕获异常；页脚、斜线、彩条、网格、海报注记都进入 PNG；
 - 多图自检：2 图 → 移除子图后回到单图且**无占位块** → 单图导出 → 重新上传 → **补充图注**（主图 / 子图各一条）并重排，0 异常；
-- 设计模式自检：顶栏下拉切到设计模式 → 提示词弹窗显示设计总监版 → mock 返回包豪斯 / 瑞士 / 卡带三套不同模板 → 画廊隐藏风格包 → 海报空正文会补报纸备用正文并显示提示 → 切回标准模式恢复风格包，0 异常；
+- 设计模式自检：顶栏下拉切到设计模式 → 提示词弹窗显示设计总监版 → mock 返回包豪斯 / 瑞士 / 卡带三套不同模板 → 画廊隐藏风格包 → 海报空正文会补报纸备用正文并显示提示 → 三套英文艺术字标题与 FPL Bauhaus / FPL Swiss / FPL Cassette 字体加载 → 切回标准模式恢复风格包，0 异常；
 - 自由模式自检：顶栏选自由模式先弹「推荐使用支持 SVG / 图像生成的结构化模型」；取消保持标准、确认后持久化；无照片生成 3 张图标库组合 SVG、无占位；打开画布后 SVG 正常、导出 1588×2246 PNG；上传照片后 3 套改为照片、不显示 SVG，0 异常；
 - 海报正文自检：设计模式 + 海报格式生成三套，模型 B 返回空正文 → 画廊显示「缺少正文，已补一条报纸备用正文」→ 进入 B → 切回报纸 → 正文至少 1 段、没有空正文状态；
 - 图标库自检：94 枚图标、11 个分组、鱼/星/彩虹修正；9 套模板 × 6 种构图全部通过 SVG 清洗；填充 / 偏移阴影 / 透明度进入组合 SVG；
@@ -576,6 +605,7 @@ node scripts/export-matrix.mjs
 - 示例照片由 `scripts/make_demo_photo.py` 用 Pillow 程序化生成，不依赖外部图库。
 - **94 枚 Emoji Outline 图标**由用户提供的 `emoji-outline-svg-code*.md` 整理；原始参考保存在 `prompts/references/emoji-outline/`，鱼 / 星星 / 彩虹和自定义图标在 `icon-library.overrides.js` 中维护。
 - 英文字体 Playfair Display / Source Sans 3 / Source Serif 4 / PT Serif / IBM Plex Mono 为 OFL 许可，通过 Google Fonts **可选、非阻塞**加载；离线时回退到 Georgia / 系统无衬线 / 等宽，中文回退到宋体 / 苹方 / 思源。
+- **6 款艺术英文字体**（Alibaba PuHuiTi 构成主义、Bauman 包豪斯、Nasalization NASA、STENCAM 风格派、UNIVERSAL SANS 瑞士、Alphabetized Cassette Tapes 卡带）由用户提供，字体许可与商用范围请以原始字体包为准；本项目只把它们用于英文装饰标题。
 
 ## 已知边界 / 下一步
 
@@ -591,6 +621,7 @@ node scripts/export-matrix.mjs
 - **子图删除即回收**：移除后回到单图全宽版式，不保留占位块；主图图注与子图图注分别保存；
 - **海报注记**：`poster_note` 是短装饰文案，不是正文；模型可能输出英文标签或氛围句，均可在画布上双击修改；
 - **海报正文会保留**：海报不渲染正文，但生成时仍要求 1–2 段短正文；手动删除正文后，报纸视图会显示「此方案没有正文」的空状态，不再静默空白；
+- **艺术字只用于英文**：6 款字体只渲染英文装饰标题，不能用于中文正文；经典 / 小报 / 极简三套没有对应艺术字；字体许可请以原始字体包为准；
 - **自由模式仍是线条图案**：每套 1 个主视觉；从 94 枚图标库组合，模型只负责选图案、构图、样式和补元素；不生成写实插画；
 - **填充与阴影是受控的**：填充只允许 palette + 低透明度，阴影用偏移重复路径，不使用 SVG filter；
 - **纯生图模型未接入**：当前 BYOK 是 chat/completions + 结构化 JSON；DALL·E / Flux / SD 需要单独的 provider 与图片存储，自由模式提示文案已说明这一点；
