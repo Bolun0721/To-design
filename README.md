@@ -80,17 +80,31 @@ npm run desktop
 打包：
 
 ```bash
-npm run desktop:pack    # 生成 dist-desktop/win-unpacked/头版智造局.exe
-npm run desktop:build   # 生成 dist-desktop/头版智造局-0.16.0-portable.exe
+npm run desktop:pack     # 生成 dist-desktop/win-unpacked/
+npm run desktop:build    # 同上，生成完整桌面目录
+npm run desktop:portable # 可选：单文件便携版
 ```
 
-- `win-unpacked` 是可直接运行的完整目录；
-- `portable.exe` 是单文件便携版；
+- 发布时建议打包 **`win-unpacked` 整个目录**；
+- 用户首次启动请双击 **`启动桌面版.bat`**，不要直接双击 `头版智造局.exe`；
+- `启动桌面版.bat` 使用 `FrontPageLab.exe --no-sandbox` 启动，兼容部分 Windows 机器 / 便携目录下 Chromium sandbox 初始化失败的问题；
+- `FrontPageLab.exe` 是 `头版智造局.exe` 的 ASCII 路径别名，方便批处理启动；
+- 单文件 `portable.exe` 仍可构建，但不作为默认交付格式；
 - 窗口默认 1440×900，最小 1100×720；
 - 应用只监听 `127.0.0.1`，不暴露局域网；
 - 外部帮助链接用系统浏览器打开，应用内不允许跳转到外部页面；
 - 用户数据存到 `%APPDATA%\FrontPageLab`；
+- 启动失败日志：`%APPDATA%\FrontPageLab\desktop.log`；
 - 桌面版关闭窗口即停止内嵌服务。
+
+桌面发布包：
+
+```text
+dist-desktop/头版智造局-桌面版-v0.16.2-win-x64.zip
+```
+
+解压后双击 **`启动桌面版.bat`**。  
+不要直接双击 `头版智造局.exe`：部分 Windows 环境在 Chromium sandbox 初始化阶段会直接退出；`启动桌面版.bat` 会通过 ASCII 别名 `FrontPageLab.exe` 加上 `--no-sandbox` 启动，兼容性更稳。
 
 也可以直接用 URL 进入某个状态（方便演示 / 截图）：
 
@@ -416,7 +430,7 @@ Base URL：https://ark.cn-beijing.volces.com/api/v3
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）、`v0.14.1`（便携启动脚本与 ZIP 打包）、`v0.15.0`（三模式海报英文艺术字装饰）、`v0.16.0`（Electron 桌面版）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）、`v0.14.1`（便携启动脚本与 ZIP 打包）、`v0.15.0`（三模式海报英文艺术字装饰）、`v0.16.0`（Electron 桌面版）、`v0.16.2`（桌面启动兼容与日志）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
