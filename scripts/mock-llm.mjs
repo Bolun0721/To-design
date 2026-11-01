@@ -148,6 +148,11 @@ const server = http.createServer((req, res) => {
         content: {
           ...designPayload.schemes[0].content,
           english_title: 'GEOMETRIC DAILY',
+          art_words: [
+            { text: 'GEOMETRIC DAILY', placement: 'headline' },
+            { text: 'BAUHAUS', placement: 'masthead' },
+            { text: 'ISSUE 03', placement: 'note' },
+          ],
           body_blocks: [{ type: 'paragraph', text: '设计模式允许用更短的正文，把视觉重心交给标题和图片。' }],
           poster_note: 'BAUHAUS STUDY · 001',
         },
@@ -181,6 +186,11 @@ const server = http.createServer((req, res) => {
         content: {
           ...designPayload.schemes[1].content,
           english_title: 'THE QUIET HOUR',
+          art_words: [
+            { text: 'THE QUIET HOUR', placement: 'headline' },
+            { text: 'SWISS GRID', placement: 'masthead' },
+            { text: '02 / 2026', placement: 'note' },
+          ],
           body_blocks: [],
           poster_note: 'SWISS GRID · 02',
         },
@@ -201,6 +211,11 @@ const server = http.createServer((req, res) => {
         content: {
           ...designPayload.schemes[2].content,
           english_title: 'AFTER HOURS',
+          art_words: [
+            { text: 'AFTER HOURS', placement: 'headline' },
+            { text: 'SIDE A', placement: 'masthead' },
+            { text: '03:00 AM', placement: 'note' },
+          ],
           body_blocks: [{ type: 'paragraph', text: '黑底荧光绿，用屏幕感处理一杯咖啡的日常。' }],
           poster_note: 'SIDE A · 03:00',
         },

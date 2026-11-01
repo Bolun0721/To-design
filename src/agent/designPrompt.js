@@ -47,7 +47,10 @@ const SCHEMA = `{
       "content": {
         "headline": "主标题，≤15 字",
         "subhead": "副标题，≤25 字",
-        "english_title": "英文装饰标题，2–5 词，≤42 字符，可留空",
+        "art_words": [
+          { "text": "GEOMETRIC DAILY", "placement": "headline" },
+          { "text": "BAUHAUS", "placement": "masthead" }
+        ],
         "body_blocks": [{ "type": "paragraph", "text": "正文段落，至少 1 段；海报也不输出空数组" }],
         "caption": "主图图注，≤30 字",
         "caption_secondary": "子图图注，多图时可选，≤30 字",
@@ -121,20 +124,25 @@ ${ART_FONT_TABLE_TEXT}
 - style.headline_scale：${Object.keys(HEADLINE_SCALES).join(' / ')}
 - style.image_treatment：original / halftone_mono / duotone
 - style.art_font：none 或艺术字 id；只允许与 layout_variant 对应的 id
-- content.english_title：英文装饰标题，2–5 个英文词，≤42 字符，可留空
+- content.art_words：0–3 个英文装饰词；海报建议 2–3 个，placement 为 headline / masthead / note
 - body_blocks：设计模式允许 1–4 段，最多约 320 字；海报也至少写 1 段，不要输出空数组
 - layout_variant / color_preset / font_pairing 必须是上面白名单中的 id
 - 不要输出 custom_options、自定义坐标、HTML、CSS、图片 URL 或其他未声明字段
 
-# 英文艺术字标题
+# 英文艺术字装饰
 
+- 从用户描述 / 照片里提取 2–4 个具体关键词（地点、物件、时间、动作、情绪），再写成 0–3 个英文装饰词；海报优先 2–3 个，报纸最多 1 个。
 - 艺术字只支持英文字母、数字和基本标点，**不能用于中文标题**；中文 headline 继续使用原来的 font_pairing。
-- 艺术字是装饰性的英文 kicker / 小标题，不是中文标题的逐字翻译，也不是正文；2–5 个词，短、硬、可读。
+- 艺术字不是中文标题的逐字翻译，也不是正文；1–4 个词，短、硬、可读，例如 SLOW MORNING / WINDOW SEAT / ISSUE 03。
+- placement 决定位置：
+  - headline：中文主标题上方的 kicker，2–4 词；
+  - masthead：报头右侧的小标签，1–3 词；
+  - note：海报注记上方的短标签，1–3 词。
 - 只在版式有匹配字体时使用：constructivism / bauhaus / nasa_punk / de_stijl / swiss_style / cassette_futurism。
-- classic_broadsheet / tabloid_bold / minimal_masthead 没有对应艺术字：art_font 必须为 none，english_title 可留空。
+- classic_broadsheet / tabloid_bold / minimal_masthead 没有艺术字字体；art_font 填 none，但仍可给 headline 写一个短的英文装饰词，前端会用标题字体渲染。
 - 艺术字与版式必须对应，例如 bauhaus 用 bauhaus、卡带未来用 cassette_futurism，不要跨风格硬套。
 - 不要为了用艺术字而编造品牌名、真实机构、活动名或英文新闻；可以写氛围短句。
-- 三套不需要都用英文标题；优先给最需要视觉记忆点的一套使用。
+- 位置不要贪多：海报 2–3 个足够，不要让英文装饰盖过中文标题。三套方案不必都使用。
 
 # 输入
 

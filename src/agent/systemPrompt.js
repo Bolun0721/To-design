@@ -68,6 +68,11 @@ ${DESIGN_SKILL}
 10. 所有模板都支持「主图 + 子图」双图位：如果用户提供了次图，写一条 caption_secondary；如果只有一张照片，不要输出次图占位对象，也不要复用主图，前端会自动使用单图版式。
 11. image_placeholders 只在主图缺失、确实需要占位时输出；没有占位需求则输出空数组 []。
 12. 海报的正文不会全部上版，留白较多；用 poster_note 写一条短装饰文案（时间 / 地点 / 版次 / 氛围短句 / 英文小标签），不要用长段落硬填，也不要编造事实。
+13. art_words 是从用户描述 / 照片中提取关键词后的 **英文装饰词**，不是中文标题的逐字翻译；海报建议 2–3 个，报纸最多 1 个（headline）。每项格式 {"text":"SLOW MORNING","placement":"headline|masthead|note"}；只允许英文字母 / 数字 / 基本标点，1–4 个词，不编造品牌名、真实机构或英文新闻。
+   - headline：中文主标题上方 kicker；
+   - masthead：报头右侧小标签；
+   - note：海报注记上方短标签。
+   - 前端会按 layout_variant 自动套艺术字体；不要输出字体 id。
 
 # 版式库（layout_variant 白名单）
 
@@ -113,6 +118,10 @@ ${FONT_WHITELIST}
         "body_blocks": [
           { "type": "paragraph", "text": "正文段落一" },
           { "type": "paragraph", "text": "正文段落二" }
+        ],
+        "art_words": [
+          { "text": "SLOW MORNING", "placement": "headline" },
+          { "text": "WINDOW SEAT", "placement": "masthead" }
         ],
         "caption": "图片说明",
         "caption_secondary": "子图说明（多图时可选，≤30字）",
@@ -182,7 +191,7 @@ ${formatLabel}${
         ? '（设计模式：海报版不渲染正文，但仍要写 1–2 段、约 60–120 字的报纸备用正文；不要输出 []。留白是设计的一部分，正文留给报纸视图。）'
         : '（设计模式：正文可 1–4 段，按设计需要决定；不要为了填满版面写长文。）'
       : formatLabel === '海报'
-        ? '（海报只展示标题、副标题、主图、图注和 poster_note 装饰短句；正文仍要写，供切换到报纸模式时使用。海报留白较多，poster_note 要能撑住版面。）'
+        ? '（海报只展示标题、副标题、主图、图注、poster_note 和 2–3 个英文艺术字装饰；正文仍要写，供切换到报纸模式时使用。艺术字要和用户描述里的关键词有关，不要写成品牌名。）'
         : '（A4 报纸头版，正文会以多栏排版，请控制段落长度）'
   }
 

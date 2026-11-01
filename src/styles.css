@@ -2373,7 +2373,7 @@ body.is-block-dragging {
 .headline-art {
   display: block;
   margin: 0 0 0.28em;
-  font-family: var(--art-font, "FPL Swiss");
+  font-family: var(--art-font, var(--font-head));
   font-size: calc(var(--headline-size) * 0.34);
   font-weight: 400;
   line-height: 1;
@@ -2419,6 +2419,46 @@ body.is-block-dragging {
   font-size: calc(var(--headline-size) * 0.42);
   max-height: 1.2em;
 }
+
+.m-art {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.m-art[data-art-font="constructivism"] { font-family: "FPL Constructivism"; }
+.m-art[data-art-font="bauhaus"] { font-family: "FPL Bauhaus"; }
+.m-art[data-art-font="nasa_punk"] { font-family: "FPL Nasa"; }
+.m-art[data-art-font="de_stijl"] { font-family: "FPL Stencil"; }
+.m-art[data-art-font="swiss_style"] { font-family: "FPL Swiss"; }
+.m-art[data-art-font="cassette_futurism"] { font-family: "FPL Cassette"; }
+
+.poster-note-art {
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.poster-note-art[data-art-font="constructivism"] { font-family: "FPL Constructivism"; }
+.poster-note-art[data-art-font="bauhaus"] { font-family: "FPL Bauhaus"; }
+.poster-note-art[data-art-font="nasa_punk"] { font-family: "FPL Nasa"; }
+.poster-note-art[data-art-font="de_stijl"] { font-family: "FPL Stencil"; }
+.poster-note-art[data-art-font="swiss_style"] { font-family: "FPL Swiss"; }
+.poster-note-art[data-art-font="cassette_futurism"] { font-family: "FPL Cassette"; }
 
 .subhead {
   margin: 0;

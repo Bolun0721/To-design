@@ -73,6 +73,26 @@ artPayload.schemes[0].content.english_title = 'GEOMETRIC DAILY'
 const art = normalizeSchemes(artPayload, { date, format: 'newspaper', mode: 'design' })
 assert.equal(art.schemes[0].style.art_font, 'bauhaus')
 assert.equal(art.schemes[0].content.english_title, 'GEOMETRIC DAILY')
+assert.deepEqual(art.schemes[0].content.art_words, [
+  { text: 'GEOMETRIC DAILY', placement: 'headline' },
+])
+
+const multiArtPayload = JSON.parse(JSON.stringify(artPayload))
+multiArtPayload.schemes[0].content.art_words = [
+  { text: 'slow morning', placement: 'headline' },
+  { text: 'window seat', placement: 'masthead' },
+  { text: 'issue 03', placement: 'note' },
+]
+const multiArt = normalizeSchemes(multiArtPayload, {
+  date,
+  format: 'poster',
+  mode: 'design',
+})
+assert.deepEqual(multiArt.schemes[0].content.art_words, [
+  { text: 'SLOW MORNING', placement: 'headline' },
+  { text: 'WINDOW SEAT', placement: 'masthead' },
+  { text: 'ISSUE 03', placement: 'note' },
+])
 
 const mismatchedArt = JSON.parse(JSON.stringify(artPayload))
 mismatchedArt.schemes[0].style.art_font = 'swiss_style'
@@ -85,8 +105,8 @@ assert.equal(mismatched.schemes[0].style.art_font, 'bauhaus')
 assert.ok(mismatched.warnings.some((warning) => warning.includes('艺术字体与版式不匹配')))
 
 const standardArt = normalizeSchemes(artPayload, { date, format: 'newspaper' })
-assert.equal(standardArt.schemes[0].content.english_title, '')
-assert.equal(standardArt.schemes[0].style.art_font, '')
+assert.equal(standardArt.schemes[0].content.english_title, 'GEOMETRIC DAILY')
+assert.equal(standardArt.schemes[0].style.art_font, 'bauhaus')
 console.log('✓ design mode keeps free template/color choices and backfills a newspaper body')
 
 const customScheme = designed.schemes[0]

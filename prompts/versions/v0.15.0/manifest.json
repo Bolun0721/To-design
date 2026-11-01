@@ -1,0 +1,15 @@
+{
+  "version": "v0.15.0",
+  "date": "2026-11-01",
+  "gitTag": "v0.15.0",
+  "description": "三模式海报英文艺术字装饰：从描述关键词提取，headline / masthead / note 三个位置",
+  "files": [
+    "systemPrompt.js",
+    "chat.js",
+    "designPrompt.js",
+    "artPrompt.js",
+    "imagePrompt.js",
+    "designSkill.js",
+    "captions.js"
+  ]
+}

@@ -68,6 +68,30 @@ function cleanEnglishTitle(value) {
     .toUpperCase()
 }
 
+const ART_WORD_PLACEMENTS = ['headline', 'masthead', 'note']
+
+function normalizeArtWords(content) {
+  const raw = Array.isArray(content?.art_words) ? content.art_words : []
+  const words = []
+  const usedPlacements = new Set()
+  for (const item of raw) {
+    const text = clampText(cleanEnglishTitle(typeof item === 'string' ? item : item?.text), 32)
+    if (!text || words.some((word) => word.text === text)) continue
+    const placement = ART_WORD_PLACEMENTS.includes(item?.placement)
+      ? item.placement
+      : 'headline'
+    if (usedPlacements.has(placement)) continue
+    usedPlacements.add(placement)
+    words.push({ text, placement })
+    if (words.length >= 3) break
+  }
+  if (!usedPlacements.has('headline') && content?.english_title) {
+    const legacy = clampText(cleanEnglishTitle(content.english_title), 32)
+    if (legacy) words.unshift({ text: legacy, placement: 'headline' })
+  }
+  return words.slice(0, 3)
+}
+
 function firstUnused(preferred, used, fallback) {
   if (!used.has(fallback)) return fallback
   return preferred.find((x) => !used.has(x)) || fallback
@@ -147,29 +171,29 @@ export function normalizeSchemes(
 
     const content = raw?.content || {}
 
-    const englishTitle = designMode
-      ? clampText(cleanEnglishTitle(content.english_title), 42)
-      : ''
+    const artWords = normalizeArtWords(content)
+    const englishTitle = artWords.find((word) => word.placement === 'headline')?.text || ''
+    const preferredArtFont = artFontForVariant(variant)
     let artFont = ''
-    if (designMode && englishTitle) {
-      const preferred = artFontForVariant(variant)
+    if (artWords.length) {
       const requested = String(rawStyle.art_font || '')
-      if (requested && !ART_FONT_IDS.includes(requested)) {
+      if (designMode && requested && !ART_FONT_IDS.includes(requested)) {
         warnings.push(`方案 ${slot.id} 的艺术字体不在白名单，已按模板回退。`)
       }
-      if (requested && ART_FONTS[requested] && ART_FONTS[requested].variant !== variant) {
+      if (
+        designMode &&
+        requested &&
+        ART_FONTS[requested] &&
+        ART_FONTS[requested].variant !== variant
+      ) {
         warnings.push(`方案 ${slot.id} 的艺术字体与版式不匹配，已按模板回退。`)
       }
       artFont =
-        ART_FONT_IDS.includes(requested) && ART_FONTS[requested].variant === variant
+        designMode &&
+        ART_FONT_IDS.includes(requested) &&
+        ART_FONTS[requested].variant === variant
           ? requested
-          : preferred
-      if (!artFont) {
-        warnings.push(`方案 ${slot.id} 的版式没有匹配艺术字体，英文标题不显示艺术字。`)
-      }
-    }
-    if (designMode && content.english_title && charLen(cleanEnglishTitle(content.english_title)) > 42) {
-      warnings.push(`方案 ${slot.id} 的英文标题超过 42 字符，已截断。`)
+          : preferredArtFont
     }
 
     let headline = clampText(cleanText(content.headline), 15)
@@ -258,6 +282,7 @@ export function normalizeSchemes(
         headline,
         subhead,
         english_title: englishTitle,
+        art_words: artWords,
         body_blocks: bodyBlocks,
         caption,
         caption_secondary: captionSecondary,

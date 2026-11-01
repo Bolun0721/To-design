@@ -25,7 +25,7 @@
 12. 顶栏新增 **标准模板 / 设计模式 / 自由模式** 下拉：设计模式使用设计总监提示词，模型可自由选模板、配色、字体和信息量，不套风格包；自由模式在无照片时从 94 枚 24×24 图标库组合 SVG 线条图案。
 13. 模型卡片新增 **排版模型 / 生图模型** 用途切换：生图模型按「原图 + 9 种风格」生成或处理素材图，写入素材框后自动切回排版模型生成 3 套版式；生图 Key 独立保存，不复用排版 Key。
 14. 导航栏新增 **帮助**：推荐 DeepSeek V4.1 Flash + 火山方舟 Seedream 4.0，附 API 申请步骤、模型填写表、常见错误和官网链接。
-15. 设计 / 自由模式支持 **6 款艺术英文字体**：构成主义 / 包豪斯 / NASA 朋克 / 风格派 / 瑞士风格 / 卡带未来；模型生成英文装饰标题并自动匹配版式字体。
+15. **三种模式**都会从描述关键词生成 0–3 个英文艺术字装饰（headline / masthead / note），海报优先，字体自动匹配 6 套版式。
 
 产物是真实的排版图片，不是聊天窗口里的一段文字。
 
@@ -97,9 +97,9 @@ http://127.0.0.1:5173/?demo=1&theme=light          # 亮色 + 示例
 
 ![帮助弹窗](docs/21-help.png)
 
-## 艺术英文字体（设计 / 自由模式）
+## 艺术英文字体（三种模式 / 海报优先）
 
-设计模式和自由模式可以生成一条 **英文装饰标题**，并用与版式匹配的艺术字字体渲染。它只用于英文，不替换中文标题。
+标准模板、设计模式、自由模式都会从用户描述 / 照片中提取关键词，生成 **0–3 个英文艺术字装饰**。海报优先使用 2–3 个，报纸最多 1 个（headline）。它只用于英文，不替换中文标题。
 
 | 版式 | `style.art_font` | 字体 |
 |---|---|---|
@@ -110,17 +110,37 @@ http://127.0.0.1:5173/?demo=1&theme=light          # 亮色 + 示例
 | 瑞士风格 | `swiss_style` | FPL Swiss |
 | 卡带未来 | `cassette_futurism` | FPL Cassette |
 
+`content.art_words` 的格式：
+
+```json
+[
+  { "text": "SLOW MORNING", "placement": "headline" },
+  { "text": "WINDOW SEAT", "placement": "masthead" },
+  { "text": "ISSUE 03", "placement": "note" }
+]
+```
+
+- `headline`：中文主标题上方的 kicker；
+- `masthead`：报头右侧小标签；
+- `note`：海报注记上方短标签；
+- masthead / note 只在海报格式显示，headline 在报纸和海报都显示。
+
 规则：
 
-- 英文标题 2–5 个词、≤42 字符，只允许英文字母 / 数字 / 基本标点；
-- 字体必须与版式对应；经典大报 / 小报冲击 / 极简报头没有对应艺术字，不显示艺术英文；
+- 英文 1–4 个词、≤32 字符，只允许英文字母 / 数字 / 基本标点；
+- 关键词必须来自用户描述或照片内容，不写成中文标题的逐字翻译；
+- 字体自动匹配版式；经典大报 / 小报冲击 / 极简报头没有专属艺术字，会回退为标题字体；
 - 中文 `headline` 仍使用原来的 `font_pairing`，不会被艺术字影响；
-- 前端会二次校验：不匹配的字体回退到模板对应字体；缺失匹配字体时不渲染艺术字；
-- 字体只用于装饰性 kicker / 小标题，不生成品牌名、真实机构或英文假新闻。
+- 前端会清洗非 ASCII 字符、限制位置数量和文本长度，不生成品牌名、真实机构或英文假新闻；
+- 装饰数量克制，不能让英文盖过中文标题。
 
 字体文件在 `public/fonts/`，通过 `@font-face` 加载；导出前会等待 `document.fonts.ready`。
 
 ![艺术字体](docs/22-art-fonts.png)
+
+海报 headline / masthead / note 三处装饰：
+
+![海报艺术字](docs/23-poster-art.png)
 
 ## 接入真实模型（BYOK）
 
@@ -368,7 +388,7 @@ Base URL：https://ark.cn-beijing.volces.com/api/v3
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）、`v0.14.1`（便携启动脚本与 ZIP 打包）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）、`v0.14.1`（便携启动脚本与 ZIP 打包）、`v0.15.0`（三模式海报英文艺术字装饰）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -465,7 +485,7 @@ index.html (import map + vendored Preact/htm/html2canvas + theme 预置)
   └─ config/stylePacks.js       3 组风格包：经典 / 几何 / 系统
   └─ lib/                       image / exportPaper / drafts / svg / composeArtwork
   └─ styles.css / theme-chat.css 工作室外壳 / 9 套模板样式 + 明暗主题 + 对话面板 + 草稿
-  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.14.0）
+  └─ prompts/versions/          提示词版本快照（v0.5.0 … v0.15.0）
 server.mjs                      静态服务 + /api/llm /api/image 极薄中继（零依赖）
 ```
 
@@ -541,6 +561,7 @@ server.mjs                      静态服务 + /api/llm /api/image 极薄中继�
 │   ├── cdp-body.mjs           # 海报空正文 → 切回报纸正文 / 提示 自检
 │   ├── cdp-free.mjs           # 自由模式提示 / SVG 图案 / 照片优先 / 导出
 │   ├── cdp-image.mjs          # 生图 → 素材框 → 自动切回排版 → 3 套
+│   ├── cdp-poster-art.mjs     # 海报 headline / masthead / note 艺术字
 │   ├── cdp-chat.mjs           # 对话 patch / 撤销 / 主题切换 自检
 │   ├── cdp-export.mjs         # 亮色主题下报纸 / 海报按钮导出 自检
 │   ├── cdp-multi.mjs          # 子图增删 / 无占位 / 补充图注 / 单图导出
@@ -575,6 +596,7 @@ node scripts/cdp-design.mjs
 node scripts/cdp-body.mjs
 node scripts/cdp-free.mjs
 node scripts/cdp-image.mjs
+node scripts/cdp-poster-art.mjs
 node scripts/cdp-chat.mjs
 node scripts/cdp-export.mjs
 node scripts/cdp-multi.mjs
@@ -601,12 +623,13 @@ node scripts/export-matrix.mjs
 - 图标库自检：94 枚图标、11 个分组、鱼/星/彩虹修正；9 套模板 × 6 种构图全部通过 SVG 清洗；填充 / 偏移阴影 / 透明度进入组合 SVG；
 - 生图自检：切到生图模型 → textarea 从 101px 缩到 78px → 10 个风格选项 → 无图生图 → 素材框显示 AI 素材 → 自动切回排版并生成 3 套；参考图生图 / 原图不调用生图 / 独立生图 Key，0 异常；
 - 帮助自检：导航栏「帮助」打开推荐模型弹窗；2 张推荐卡（DeepSeek V4.1 Flash / Seedream 4.0）、7 个官方链接、免费额度与 Seedance 提示均存在，0 异常；
+- 海报艺术字自检：设计模式 + 海报生成三套 → headline / masthead / note 各 3 个英文装饰词 → 艺术字体正确加载，0 异常；
 - 设计版式自检：mock 方案 A 新增引语板块 `quote2`（左上角 5% / 82%）并覆盖主标题坐标；方案 C 新增 `footer2` 页脚并与原页脚显示为「页脚 1 / 页脚 2」，页脚文字实际渲染；单元测试覆盖新增板块、绝对坐标、完整矩形互换与“新重叠回退”；
 - 草稿自检：自动保存 → 刷新恢复方案 + 对话历史 → 新建草稿 → 从列表打开 → 删除，0 异常；
 - 经典导出矩阵 **12/12 通过**：暗色、亮色 × 报纸、海报 × 方案 A/B/C，报纸 1588×2246、海报 1600×2000，单例约 1.3–1.9s，**0 未捕获异常**；
 - mock 模型端到端生成 3 套方案；对话 patch 应用与撤销通过；明暗主题切换 + `localStorage` 持久化通过；三个弹窗渲染正常。
 
-> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，`cdp-body` 会验证海报空正文兜底，`cdp-free` 会调用 mock 生成 3 张 SVG，`cdp-image` 会调用 mock 图片接口走生图 → 素材 → 排版，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
+> `cdp-sandbox` 会写 mock Key 并真的发一条引用对话，`cdp-multi` 会调用 mock 生成补充图注，`cdp-design` 会调用 mock 生成设计模式三套，`cdp-body` 会验证海报空正文兜底，`cdp-free` 会调用 mock 生成 3 张 SVG，`cdp-image` 会调用 mock 图片接口走生图 → 素材 → 排版，`cdp-poster-art` 会验证海报三处艺术字，所以需要先启动 `mock-llm.mjs`；`cdp-check` / `cdp-styles` / `cdp-style-export` 不需要 mock。
 > CI 只跑语法检查 + `npm test`；导出矩阵需要本地服务与无头浏览器，放在本地 / 发布前手动跑。
 > `check-css.mjs` 会拦住 `color-mix()` / `color()` / `oklch()` 等 html2canvas 无法解析的写法——这正是上次导出失败的根因。
 

@@ -65,6 +65,12 @@ export function Paper({
   for (const block of layout) typeCounts[block.type] = (typeCounts[block.type] || 0) + 1
   const typeOrdinals = {}
   const content = scheme.content
+  const artWords = Array.isArray(content.art_words)
+    ? content.art_words
+    : content.english_title
+      ? [{ text: content.english_title, placement: 'headline' }]
+      : []
+  const artWord = (placement) => artWords.find((word) => word.placement === placement)?.text || ''
   const headlineSize = headlinePx(scheme.layout_variant, format, st.headlineScale)
   const duoHue = Math.round(hexHue(st.palette.accent) - 38)
   const commitRef = useLatest(onBlockCommit)
@@ -354,6 +360,9 @@ export function Paper({
               <span class="m-side">
                 <span class="m-en">FRONT PAGE LAB</span>
                 <span class="m-tagline">创意头版 · 非真实新闻</span>
+                ${format === 'poster' &&
+                artWord('masthead') &&
+                html`<span class="m-art" data-art-font=${st.artFont || undefined}>${artWord('masthead')}</span>`}
               </span>
             </div>
             <span class="m-rule bottom"></span>
@@ -376,11 +385,10 @@ export function Paper({
         `}
         ${block.type === 'headline' &&
         html`
-          ${st.artFont &&
-          content.english_title &&
+          ${artWord('headline') &&
           html`
-            <div class="headline-art" data-art-font=${st.artFont}>
-              ${content.english_title}
+            <div class="headline-art" data-art-font=${st.artFont || undefined}>
+              ${artWord('headline')}
             </div>
           `}
           <h1 class="headline" data-edit=${blockEditKey || 'headline'}>${customText ? block.text : content.headline}</h1>
@@ -444,6 +452,9 @@ export function Paper({
         `}
         ${block.type === 'note' &&
         html`
+          ${format === 'poster' &&
+          artWord('note') &&
+          html`<span class="poster-note-art" data-art-font=${st.artFont || undefined}>${artWord('note')}</span>`}
           <div class="poster-note">
             <span class="poster-note-mark">✳</span>
             <span data-edit=${blockEditKey || 'poster_note'}>
