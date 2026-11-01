@@ -80,31 +80,40 @@ npm run desktop
 打包：
 
 ```bash
-npm run desktop:pack     # 生成 dist-desktop/win-unpacked/
-npm run desktop:build    # 同上，生成完整桌面目录
-npm run desktop:portable # 可选：单文件便携版
+npm run desktop:pack      # 生成 dist-desktop/win-unpacked/
+npm run desktop:build     # 生成完整桌面目录
+npm run desktop:installer # 生成单文件 NSIS 安装包
+npm run desktop:portable  # 可选：单文件便携版
 ```
 
-- 发布时建议打包 **`win-unpacked` 整个目录**；
-- 用户首次启动请双击 **`启动桌面版.bat`**，不要直接双击 `头版智造局.exe`；
-- `启动桌面版.bat` 使用 `FrontPageLab.exe --no-sandbox` 启动，兼容部分 Windows 机器 / 便携目录下 Chromium sandbox 初始化失败的问题；
-- `FrontPageLab.exe` 是 `头版智造局.exe` 的 ASCII 路径别名，方便批处理启动；
-- 单文件 `portable.exe` 仍可构建，但不作为默认交付格式；
+标准安装包：
+
+```text
+dist-desktop/头版智造局-Setup-0.17.0.exe
+```
+
+- 单文件 Setup，可自选安装目录；
+- 默认按当前用户安装，不要求管理员权限；
+- 安装应用文件，并创建桌面快捷方式、开始菜单快捷方式；
+- 快捷方式目标为 `FrontPageLab.exe`，参数为 `--no-sandbox`，避免 Chromium sandbox 初始化失败；
+- 安装目录内也保留一个 `启动头版智造局.lnk` 作为兜底；
+- 卸载时删除桌面 / 开始菜单快捷方式；
+- 用户配置在 `%APPDATA%\FrontPageLab`，卸载默认不删除配置；
+- 启动失败日志：`%APPDATA%\FrontPageLab\desktop.log`。
+
+开发 / 解包运行：
+
+```bash
+npm install
+npm run desktop
+```
+
 - 窗口默认 1440×900，最小 1100×720；
 - 应用只监听 `127.0.0.1`，不暴露局域网；
 - 外部帮助链接用系统浏览器打开，应用内不允许跳转到外部页面；
-- 用户数据存到 `%APPDATA%\FrontPageLab`；
-- 启动失败日志：`%APPDATA%\FrontPageLab\desktop.log`；
 - 桌面版关闭窗口即停止内嵌服务。
 
-桌面发布包：
-
-```text
-dist-desktop/头版智造局-桌面版-v0.16.2-win-x64.zip
-```
-
-解压后双击 **`启动桌面版.bat`**。  
-不要直接双击 `头版智造局.exe`：部分 Windows 环境在 Chromium sandbox 初始化阶段会直接退出；`启动桌面版.bat` 会通过 ASCII 别名 `FrontPageLab.exe` 加上 `--no-sandbox` 启动，兼容性更稳。
+> 安装包目前未做代码签名，Windows SmartScreen 可能提示“未知发布者”；选择“仍要运行”即可。
 
 也可以直接用 URL 进入某个状态（方便演示 / 截图）：
 
@@ -430,7 +439,7 @@ Base URL：https://ark.cn-beijing.volces.com/api/v3
 - `captions.js`：多图补充图注提示词；
 - `manifest.json`：版本、日期、变更说明、对应 Git tag。
 
-当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）、`v0.14.1`（便携启动脚本与 ZIP 打包）、`v0.15.0`（三模式海报英文艺术字装饰）、`v0.16.0`（Electron 桌面版）、`v0.16.2`（桌面启动兼容与日志）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
+当前基线：`v0.5.0`（九套模板完成）、`v0.6.0`（双图 + 海报注记 + 补充图注）、`v0.7.0`（设计模式 + 设计总监提示词）、`v0.8.0`（自定义板块 / 坐标 / 互换与重叠保护）、`v0.9.0`（同类型编号 / 页脚等类型补全）、`v0.10.0`（自由模式 + SVG 图案）、`v0.11.0`（94 图标库 + 组合构图 + 鱼/星/彩虹修正）、`v0.12.0`（海报正文保留与报纸备用正文兜底）、`v0.13.0`（生图模型 + 排版模型双阶段）、`v0.13.1`（帮助与推荐模型指引）、`v0.14.0`（设计 / 自由模式英文艺术字标题）、`v0.14.1`（便携启动脚本与 ZIP 打包）、`v0.15.0`（三模式海报英文艺术字装饰）、`v0.16.0`（Electron 桌面版）、`v0.16.2`（桌面启动兼容与日志）、`v0.17.0`（Windows NSIS 安装包）。新改动不要覆盖旧快照，复制一份新版本再改。[备份说明](prompts/versions/README.md)
 
 ## 交互与导出
 
@@ -559,7 +568,8 @@ server.mjs                      静态服务 + /api/llm /api/image 极薄中继�
 ├── 启动项目.bat               # 中文入口，转发到 start.bat
 ├── 启动说明.txt               # 解压后的本地启动说明
 ├── desktop/
-│   └── main.mjs               # Electron 主进程：内嵌本地服务 + 窗口
+│   ├── main.mjs               # Electron 主进程：内嵌本地服务 + 窗口
+│   └── installer.nsh          # NSIS 快捷方式（带 --no-sandbox）
 ├── src/
 │   ├── App.js
 │   ├── main.js
@@ -666,6 +676,7 @@ node scripts/export-matrix.mjs
 - 自由模式自检：顶栏选自由模式先弹「推荐使用支持 SVG / 图像生成的结构化模型」；取消保持标准、确认后持久化；无照片生成 3 张图标库组合 SVG、无占位；打开画布后 SVG 正常、导出 1588×2246 PNG；上传照片后 3 套改为照片、不显示 SVG，0 异常；
 - 海报正文自检：设计模式 + 海报格式生成三套，模型 B 返回空正文 → 画廊显示「缺少正文，已补一条报纸备用正文」→ 进入 B → 切回报纸 → 正文至少 1 段、没有空正文状态；
 - Electron 桌面版自检：开发态启动内嵌服务 → 窗口加载 200 → 打包 win-unpacked 启动 200 → 便携版启动 200 → 页面标题 / 模式 / 帮助入口正常，0 异常；
+- Windows 安装包自检：Setup 静默安装到指定目录 → 安装目录生成 `FrontPageLab.exe` / 卸载器 / 启动快捷方式 → 快捷方式目标与 `--no-sandbox` 参数正确 → 安装后的程序启动 200；
 - 图标库自检：94 枚图标、11 个分组、鱼/星/彩虹修正；9 套模板 × 6 种构图全部通过 SVG 清洗；填充 / 偏移阴影 / 透明度进入组合 SVG；
 - 生图自检：切到生图模型 → textarea 从 101px 缩到 78px → 10 个风格选项 → 无图生图 → 素材框显示 AI 素材 → 自动切回排版并生成 3 套；参考图生图 / 原图不调用生图 / 独立生图 Key，0 异常；
 - 帮助自检：导航栏「帮助」打开推荐模型弹窗；2 张推荐卡（DeepSeek V4.1 Flash / Seedream 4.0）、7 个官方链接、免费额度与 Seedance 提示均存在，0 异常；

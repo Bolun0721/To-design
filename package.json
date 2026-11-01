@@ -1,7 +1,7 @@
 {
   "name": "front-page-lab",
   "private": true,
-  "version": "0.16.2",
+  "version": "0.17.0",
   "type": "module",
   "description": "头版智造局 — BYOK 智能报纸/海报生成器 demo（零构建）",
   "author": "Front Page Lab",
@@ -12,6 +12,7 @@
     "desktop": "electron desktop/main.mjs",
     "desktop:pack": "electron-builder --dir",
     "desktop:build": "electron-builder --dir",
+    "desktop:installer": "electron-builder --win nsis",
     "desktop:portable": "electron-builder --win portable",
     "test": "node scripts/test-validate.mjs && node scripts/test-chat.mjs && node scripts/test-free.mjs && node scripts/test-icons.mjs && node scripts/test-image.mjs && node scripts/check-css.mjs",
     "check:css": "node scripts/check-css.mjs",
@@ -45,15 +46,31 @@
       "!node_modules/**/*"
     ],
     "win": {
+      "executableName": "FrontPageLab",
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
         }
       ],
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": false,
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "include": "desktop/installer.nsh",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     }
   }
 }
