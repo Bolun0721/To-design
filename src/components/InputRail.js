@@ -304,7 +304,7 @@ export function InputRail({
                     <input
                       class="field"
                       type="text"
-                      placeholder="图片模型 ID，如 doubao-seedream-5-0-260128"
+                      placeholder="图片模型 ID，如 doubao-seedream-4-0"
                       value=${settings.image?.model || ''}
                       onInput=${(e) => updateImage({ model: e.currentTarget.value })}
                     />

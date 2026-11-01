@@ -7,7 +7,7 @@ import { Intro } from './components/Intro.js'
 import { Gallery } from './components/Gallery.js'
 import { Editor } from './components/Editor.js'
 import { Inspector } from './components/Inspector.js'
-import { JsonModal, Modal, PromptModal, SkillModal } from './components/Modals.js'
+import { HelpModal, JsonModal, Modal, PromptModal, SkillModal } from './components/Modals.js'
 import { DraftsModal } from './components/DraftsModal.js'
 import { buildDemoPayload } from './agent/demoData.js'
 import { buildCaptionSystemPrompt, buildCaptionUserPrompt } from './agent/captions.js'
@@ -1315,6 +1315,7 @@ export function App() {
         saveState=${saveState}
         onToggleTheme=${toggleTheme}
         onOpenDrafts=${openDrafts}
+        onOpenHelp=${() => setModal('help')}
         onOpenSkill=${() => setModal('skill')}
         onOpenPrompt=${() => setModal('prompt')}
       />
@@ -1479,6 +1480,7 @@ export function App() {
         `}
       </div>
 
+      ${modal === 'help' && html`<${HelpModal} onClose=${() => setModal(null)} />`}
       ${modal === 'skill' && html`<${SkillModal} onClose=${() => setModal(null)} />`}
       ${modal === 'prompt' &&
       html`<${PromptModal} prompt=${systemPrompt} onClose=${() => setModal(null)} />`}

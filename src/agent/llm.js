@@ -54,7 +54,7 @@ export const IMAGE_PROVIDERS = [
     id: 'ark',
     name: '火山方舟',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-    model: 'doubao-seedream-5-0-260128',
+    model: 'doubao-seedream-4-0',
     supportsReference: true,
     note: '图片生成用 Seedream；Seedance 是视频模型',
   },

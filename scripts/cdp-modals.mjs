@@ -113,10 +113,41 @@ await sleep(250)
 await shot('modal-prompt.png')
 const promptTitle = await evaluate(`document.querySelector('.modal-title')?.innerText`)
 const promptLength = await evaluate(`document.querySelector('.modal pre')?.innerText.length`)
+await evaluate(`document.querySelector('.modal-close').click(); true;`)
+await sleep(250)
+
+// 帮助：推荐模型与 API 申请
+await evaluate(
+  `[...document.querySelectorAll('.header-btn')].find((b) => b.innerText.includes('帮助')).click(); true;`,
+)
+await waitFor(`document.querySelectorAll('.help-card').length === 2`, '帮助弹窗')
+await sleep(250)
+await shot('modal-help.png')
+const helpTitle = await evaluate(`document.querySelector('.modal-title')?.innerText`)
+const helpCards = await evaluate(`document.querySelectorAll('.help-card').length`)
+const helpModels = await evaluate(
+  `[...document.querySelectorAll('.help-model')].map((n) => n.innerText)`,
+)
+const helpLinks = await evaluate(
+  `[...document.querySelectorAll('.help-link')].map((a) => a.getAttribute('href'))`,
+)
+const helpText = await evaluate(`document.querySelector('.modal')?.innerText || ''`)
 
 console.log(
   JSON.stringify(
-    { jsonTitle, jsonLength, skillTitle, skillCards, promptTitle, promptLength, exceptions: exceptions.length },
+    {
+      jsonTitle,
+      jsonLength,
+      skillTitle,
+      skillCards,
+      promptTitle,
+      promptLength,
+      helpTitle,
+      helpCards,
+      helpModels,
+      helpLinks,
+      exceptions: exceptions.length,
+    },
     null,
     2,
   ),
@@ -124,6 +155,16 @@ console.log(
 
 if (skillCards < 6) throw new Error('设计 Skill 卡片数量异常')
 if (promptLength < 3000) throw new Error('系统提示词长度异常')
+if (helpCards !== 2) throw new Error('帮助弹窗推荐模型卡片数量异常')
+if (!helpModels.some((name) => name.includes('DeepSeek V4.1 Flash'))) {
+  throw new Error('帮助弹窗缺少 DeepSeek V4.1 Flash')
+}
+if (!helpModels.some((name) => name.includes('Seedream 4.0'))) {
+  throw new Error('帮助弹窗缺少 Seedream 4.0')
+}
+if (helpLinks.length < 6) throw new Error('帮助弹窗官方链接不足')
+if (!helpText.includes('免费额度')) throw new Error('帮助弹窗缺少免费额度说明')
+if (!helpText.includes('Seedance 是视频模型')) throw new Error('帮助弹窗缺少 Seedance 提示')
 if (exceptions.length) throw new Error('弹窗渲染出现未捕获异常')
 
 await call('Browser.close').catch(() => {})

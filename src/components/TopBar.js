@@ -15,6 +15,7 @@ export function TopBar({
   saveState = 'idle',
   onToggleTheme,
   onOpenDrafts,
+  onOpenHelp,
   onOpenSkill,
   onOpenPrompt,
 }) {
@@ -89,6 +90,10 @@ export function TopBar({
               </svg>
             `}
         <span>${isLight ? '暗色' : '亮色'}</span>
+      </button>
+      <button class="header-btn help-btn" onClick=${onOpenHelp} type="button" title="推荐模型与 API 申请指引">
+        <span class="help-mark">?</span>
+        <span>帮助</span>
       </button>
       <button class="header-btn" onClick=${onOpenSkill}>设计 SKILL</button>
       <button class="header-btn accent" onClick=${onOpenPrompt}>系统提示词</button>

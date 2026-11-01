@@ -207,6 +207,14 @@
   color: #8a5a00;
 }
 
+[data-theme="light"] .help-card {
+  background: #fffdf8;
+}
+
+[data-theme="light"] .help-intro {
+  background: #fffaeb;
+}
+
 [data-theme="light"] .link-btn.danger:hover {
   color: #b42318;
 }
