@@ -1,7 +1,7 @@
 # 头版智造局 · 项目介绍
 
 > 一个把你上传的照片和一句描述，做成三套可编辑、可导出报纸 / 海报的 AI 排版工作台。  
-> 当前版本：`v0.17.1`  
+> 当前版本：`v0.24.0`
 > 在线仓库：<https://github.com/Bolun0721/To-design>
 
 ---
@@ -489,7 +489,7 @@ npm run desktop:installer
 产物：
 
 ```text
-dist-desktop/头版智造局-Setup-0.17.1.exe
+dist-desktop/FrontPageLab-Setup-0.24.0.exe
 ```
 
 ### 测试

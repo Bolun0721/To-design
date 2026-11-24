@@ -1,7 +1,7 @@
 {
   "name": "front-page-lab",
   "private": true,
-  "version": "0.17.1",
+  "version": "0.24.0",
   "type": "module",
   "description": "头版智造局 — BYOK 智能报纸/海报生成器 demo（零构建）",
   "author": "Front Page Lab",
@@ -56,7 +56,7 @@
           ]
         }
       ],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "FrontPageLab-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -71,7 +71,7 @@
         "zh_CN"
       ],
       "include": "desktop/installer.nsh",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "FrontPageLab-Setup-${version}.${ext}"
     }
   }
 }
