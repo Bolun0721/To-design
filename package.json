@@ -14,8 +14,9 @@
     "desktop:build": "electron-builder --dir",
     "desktop:installer": "electron-builder --win nsis",
     "desktop:portable": "electron-builder --win portable",
-    "test": "node scripts/test-validate.mjs && node scripts/test-chat.mjs && node scripts/test-free.mjs && node scripts/test-icons.mjs && node scripts/test-image.mjs && node scripts/check-css.mjs",
+    "test": "node scripts/test-validate.mjs && node scripts/test-chat.mjs && node scripts/test-free.mjs && node scripts/test-icons.mjs && node scripts/test-image.mjs && node scripts/test-poster-skill.mjs && node scripts/test-poster-render.mjs && node scripts/check-css.mjs",
     "check:css": "node scripts/check-css.mjs",
+    "fonts:subset": "python scripts/subset-fonts.py",
     "test:matrix": "node scripts/export-matrix.mjs"
   },
   "dependencies": {

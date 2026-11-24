@@ -20,6 +20,8 @@ payload.schemes[0].name = '模型甲'
 payload.schemes[1].name = '模型乙'
 payload.schemes[2].name = '模型丙'
 
+let rateLimitedOnce = false
+
 const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type')
@@ -70,7 +72,54 @@ const server = http.createServer((req, res) => {
     const systemText = Array.isArray(system) ? system.map((part) => part.text || '').join('\n') : String(system || '')
 
     let content
-    if (userText.includes('主图和子图的图注')) {
+    let delayMs = 0
+    if (userText.includes('【本轮角度】')) {
+      // 海报单套生成：返回一套「文案 + 海报规格」
+      const angle = (userText.match(/【本轮角度】([ABC])/))?.[1] || 'A'
+      delayMs = angle === 'A' ? 250 : angle === 'B' ? 1400 : 2400
+      if (process.env.MOCK_429 === '1' && angle === 'B' && !rateLimitedOnce) {
+        rateLimitedOnce = true
+        console.log('[mock-llm] forced 429 for poster B (will succeed on retry)')
+        res.writeHead(429, { 'content-type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ error: { message: 'rate limited (mock)' } }))
+        return
+      }
+      const byAngle = {
+        A: { template: 'poster_ark_file', variant: 'quiet', palette: 'ark_night', font: 'grotesk', headline: '巷口那杯手冲', word: 'FIELD NOTES' },
+        B: { template: 'poster_ark_hazard', variant: 'loud', palette: 'ark_hazard', font: 'grotesk', headline: '这杯咖啡，值得上头版', word: 'WARNING' },
+        C: { template: 'poster_endfield_survey', variant: 'loud', palette: 'endfield_field', font: 'grotesk', headline: '周日，晴', word: 'SURVEY' },
+      }
+      const pick = byAngle[angle] || byAngle.A
+      const recipe = { poster_ark_file: 'paper_grain', poster_ark_hazard: 'diagonal_split', poster_endfield_survey: 'contour' }[pick.template]
+      content = JSON.stringify({
+        name: `MOCK ${angle}`,
+        poster_template: pick.template,
+        poster_variant: pick.variant,
+        color_preset: pick.palette,
+        font_pairing: pick.font,
+        headline_scale: angle === 'B' ? 'xlarge' : 'large',
+        content: {
+          headline: pick.headline,
+          subhead: '一个普通的周日下午，被十分钟的等待重新计时',
+          caption: '靠窗的座位上，一杯手冲与一本翻旧的书',
+          poster_note: '周日 · 下午三点 · 巷口',
+          art_words: [{ text: pick.word, placement: 'headline' }],
+          body_blocks: [
+            {
+              type: 'paragraph',
+              text: '下午三点，巷口的咖啡馆只坐了三桌客人。靠窗的位置上，一杯手冲刚刚注完最后一段水，热气沿着玻璃向上爬。',
+            },
+          ],
+          date: '2026年11月24日',
+        },
+        poster: {
+          art: { recipe, params: {}, seed: 42 + angle.charCodeAt(0), shapes: [] },
+          textures: { paper: 'aged', grain: 0.06 },
+        },
+        design_rationale: `MOCK 海报 ${angle}：模板 ${pick.template}。`,
+      })
+      console.log(`[mock-llm] poster request -> ${angle} / ${pick.template}`)
+    } else if (userText.includes('主图和子图的图注')) {
       content = JSON.stringify({
         captions: [
           { slot: 'main', text: '窗边的咖啡与一本翻旧的书' },
@@ -80,14 +129,23 @@ const server = http.createServer((req, res) => {
       console.log('[mock-llm] caption request -> 2 captions')
     } else if (userText.includes('【本次指令】')) {
       // 对话微调：返回一个最小 patch
-      content = JSON.stringify({
-        reply: '已把标题放大，并换成财经日报配色。',
-        patch: {
-          color_preset: 'financial_daily',
-          style: { headline_scale: 'xlarge' },
-          content: { headline: '夜色里的手冲' },
-        },
-      })
+      const posterChat = systemText.includes('海报微调')
+      const wantsZine = /手作|zine|换模板/i.test(userText)
+      content = JSON.stringify(
+        posterChat && wantsZine
+          ? {
+              reply: '已换成「终末信号」模板，并切到张扬排版。',
+              patch: { poster: { template: 'poster_endfield_signal', variant: 'loud' } },
+            }
+          : {
+              reply: '已把标题放大，并换成财经日报配色。',
+              patch: {
+                color_preset: 'financial_daily',
+                style: { headline_scale: 'xlarge' },
+                content: { headline: '夜色里的手冲' },
+              },
+            },
+      )
       console.log('[mock-llm] edit request -> patch')
     } else if (userText.includes('【图案任务】')) {
       content = JSON.stringify({
@@ -239,15 +297,19 @@ const server = http.createServer((req, res) => {
       console.log('[mock-llm] generation request -> 3 schemes')
     }
 
-    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
-    res.end(
-      JSON.stringify({
-        id: 'mock-1',
-        model: body.model || 'mock-model',
-        choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: 1200, completion_tokens: 900, total_tokens: 2100 },
-      }),
-    )
+    const send = () => {
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(
+        JSON.stringify({
+          id: 'mock-1',
+          model: body.model || 'mock-model',
+          choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1200, completion_tokens: 900, total_tokens: 2100 },
+        }),
+      )
+    }
+    if (delayMs > 0) setTimeout(send, delayMs)
+    else send()
   })
 })
 

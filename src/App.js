@@ -23,6 +23,15 @@ import {
   buildDesignSystemPrompt,
 } from './agent/designPrompt.js'
 import { buildSystemPrompt, buildUserPrompt } from './agent/systemPrompt.js'
+import { buildPosterSystemPrompt, buildPosterUserPrompt } from './agent/posterPrompt.js'
+import {
+  defaultPosterSpec,
+  mergePosterPatch,
+  normalizePosterScheme,
+  posterAngle,
+} from './agent/posterSpec.js'
+import { POSTER_ANGLES, POSTER_ASSET_VERSION, getPosterTemplate } from './config/posterTemplates.js'
+import { auditPosterScheme } from './agent/posterSkill.js'
 import { buildChatSystemPrompt, buildChatUserPrompt, applyChatPatch } from './agent/chat.js'
 import { cleanText, normalizeSchemes, rebuildLayout } from './agent/validate.js'
 import {
@@ -32,14 +41,15 @@ import {
   requestArtworks,
   requestCaptions,
   requestEdit,
+  requestPosterScheme,
   requestSchemes,
 } from './agent/llm.js'
 import { buildImagePrompt, getImageStyle } from './config/imageStyles.js'
 import { requestImage, resolveImageSize } from './agent/image.js'
 import { chineseDate, clampText, shortDate } from './lib/format.js'
 import { DEMO_PHOTO, DEMO_PHOTO_2, readGeneratedImage, readPhoto } from './lib/image.js'
-import { downloadDataUrl, printDataUrl } from './lib/exportPaper.js'
-import { FORMATS, buildLayout, resolveStyle } from './config/presets.js'
+import { downloadDataUrl, openPrintWindow, printDataUrl, printSvgDocument } from './lib/exportPaper.js'
+import { COLOR_PRESETS, FORMATS, buildLayout, resolveStyle } from './config/presets.js'
 import { buildDesignLayout } from './config/designLayout.js'
 import { applyStylePack, nextStylePack, STYLE_PACK_IDS } from './config/stylePacks.js'
 import {
@@ -60,6 +70,11 @@ const LS_THEME = 'fpl.theme.v1'
 const LS_MODE = 'fpl.mode.v1'
 const SS_KEY = 'fpl.apikey.v1'
 const SS_IMAGE_KEY = 'fpl.imagekey.v1'
+
+/** 限流识别：llm.js 的 friendlyError 会把 429 写进消息。 */
+function isRateLimited(err) {
+  return /429|too many requests|rate limit|请求过于频繁|限流|额度/i.test(String(err?.message || ''))
+}
 
 function loadSettings() {
   try {
@@ -181,8 +196,13 @@ export function App() {
   const freeMode = mode === 'free'
   const designMode = mode === 'design' || freeMode
   const systemPrompt = useMemo(
-    () => (designMode ? buildDesignSystemPrompt() : buildSystemPrompt()),
-    [designMode],
+    () =>
+      format === 'poster'
+        ? buildPosterSystemPrompt()
+        : designMode
+          ? buildDesignSystemPrompt({ format })
+          : buildSystemPrompt({ format }),
+    [designMode, format],
   )
   const activeScheme = schemes[active] || null
   const provider = PROVIDERS.find((p) => p.id === settings.provider) || PROVIDERS[0]
@@ -276,6 +296,7 @@ export function App() {
       setChatBusy(false)
       setChatReference(null)
       const hasSub = hasSubOverride ?? Boolean(photo2)
+      const resultFormat = result.format || format
       const packed = designMode
         ? result.schemes.map((scheme) => ({
             ...scheme,
@@ -284,7 +305,9 @@ export function App() {
               poster: buildDesignLayout(scheme, 'poster', hasSub),
             },
           }))
-        : applyStylePack(result.schemes, stylePack, hasSub)
+        : resultFormat === 'poster'
+          ? result.schemes
+          : applyStylePack(result.schemes, stylePack, hasSub)
       setSchemes(packed)
       setSummary(result.summary)
       setWarnings(result.warnings || [])
@@ -297,7 +320,7 @@ export function App() {
       setActive(idx >= 0 ? idx : 0)
       setView('gallery')
     },
-    [designMode, photo2, stylePack],
+    [designMode, format, photo2, stylePack],
   )
 
   const loadDemo = useCallback(
@@ -309,7 +332,50 @@ export function App() {
           format: fmt,
           mode,
         })
-        applyResult(normalized, photo ? Boolean(photo2) : true)
+        const demoPosterWarnings = []
+        let demoSchemes = normalized.schemes
+        if (fmt === 'poster') {
+          demoSchemes = normalized.schemes.map((scheme) => {
+            const base = scheme.poster
+              ? scheme
+              : { ...scheme, poster: defaultPosterSpec(scheme, { angle: scheme.id }) }
+            const tpl = getPosterTemplate(base.poster.template)
+            const withPoster = {
+              ...base,
+              color_preset: tpl.palette,
+              font_pairing: tpl.font,
+              style: {
+                ...base.style,
+                accent_color: COLOR_PRESETS[tpl.palette].accent,
+              },
+              content: {
+                ...base.content,
+                art_words:
+                  base.content.art_words?.length || !tpl.demoArtWord
+                    ? base.content.art_words || []
+                    : [{ text: tpl.demoArtWord, placement: 'headline' }],
+              },
+              design_rationale: tpl.tagline,
+            }
+            demoPosterWarnings.push(...auditPosterScheme(withPoster))
+            return withPoster
+          })
+        }
+        applyResult(
+          demoPosterWarnings.length
+            ? {
+                ...normalized,
+                schemes: demoSchemes,
+                warnings: [...(normalized.warnings || []), ...demoPosterWarnings],
+              }
+            : { ...normalized, schemes: demoSchemes },
+          photo ? Boolean(photo2) : true,
+        )
+        if (fmt === 'poster') {
+          setSummary(
+            `三套海报已就绪，推荐 ${normalized.recommended || 'B'}：先看层级，再横比模板与图案。`,
+          )
+        }
         setDemoMode(true)
         if (!photo) {
           setPhoto(DEMO_PHOTO)
@@ -335,7 +401,9 @@ export function App() {
 
   const applyDraft = useCallback((draft) => {
     if (!draft || draft.version !== 1) return false
-    const nextSchemes = Array.isArray(draft.schemes) ? draft.schemes : []
+    const nextSchemes = (Array.isArray(draft.schemes) ? draft.schemes : []).map((scheme) =>
+      scheme.poster ? scheme : { ...scheme, poster: defaultPosterSpec(scheme, { angle: scheme.id }) },
+    )
     const nextActive = Math.min(
       Math.max(Number(draft.active) || 0, 0),
       Math.max(nextSchemes.length - 1, 0),
@@ -419,6 +487,10 @@ export function App() {
 
   useEffect(() => {
     if (restoringDraft) return
+    if (schemes.some((scheme) => scheme.pending)) {
+      setSaveState('idle')
+      return
+    }
     if (!hasDraftContent) {
       setSaveState('idle')
       return
@@ -604,7 +676,264 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const requestOnePoster = useCallback(
+    async ({ angle, photoDataUrl, photo2DataUrl, date, signal }) => {
+      const result = await requestPosterScheme({
+        apiKey,
+        settings,
+        system: buildPosterSystemPrompt(),
+        user: buildPosterUserPrompt({
+          angle: angle.id,
+          description,
+          photoMeta: photoDataUrl ? photo : null,
+          secondaryPhotoMeta: photo2DataUrl ? photo2 : null,
+          date,
+          mode,
+          vision: Boolean(settings.vision && (photoDataUrl || photo2DataUrl)),
+        }),
+        photoDataUrl,
+        photo2DataUrl,
+        signal,
+      })
+      const { scheme, warnings } = normalizePosterScheme(result.json, { angle: angle.id, date, mode })
+      return { scheme, warnings: [...warnings, ...auditPosterScheme(scheme)] }
+    },
+    [apiKey, description, mode, photo, photo2, settings],
+  )
+
+  /** 海报：3 路并行、单套返回即渲染，先出第一套。 */
+  const generatePoster = useCallback(
+    async (options = {}) => {
+      if (busy && !options.force) return
+      const activePhoto = 'photo' in options ? options.photo : photo
+      if (!apiKey.trim()) {
+        setError('还没有填写模型 API Key。请在左侧「03 / 模型」里填写。')
+        return
+      }
+      setBusy(true)
+      setBusyLabel('正在写第一套海报…')
+      setError('')
+      const controller = new AbortController()
+      abortRef.current = controller
+      const timer = setTimeout(() => controller.abort(), 150_000)
+      const date = chineseDate()
+      const placeholders = POSTER_ANGLES.map((angle) => ({
+        id: angle.id,
+        name: '生成中…',
+        angle: angle.id,
+        angleRole: angle.role,
+        pending: true,
+        pendingError: '',
+        layout_variant: 'classic_broadsheet',
+        color_preset: 'classic_serious',
+        font_pairing: 'serif_serif',
+        style: { headline_scale: 'large', art_font: 'none', accent_color: '#C8102E' },
+        content: {
+          headline: '',
+          subhead: '',
+          caption: '',
+          poster_note: '',
+          art_words: [],
+          body_blocks: [],
+          date,
+        },
+        poster: null,
+        design_rationale: '',
+      }))
+      setSchemes(placeholders)
+      setWarnings([])
+      setSummary('三套海报正在并发生成，第一套完成会立即显示。')
+      setRecommended('A')
+      setChats({})
+      setChatUndo({})
+      setChatReference(null)
+      setView('gallery')
+      setDemoMode(false)
+
+      let completed = 0
+      let firstId = ''
+      const rateLimited = []
+
+      const applyPosterScheme = (angle, scheme, warnings) => {
+        completed += 1
+        if (!firstId) firstId = scheme.id
+        setSchemes((prev) => prev.map((item) => (item.id === angle.id ? scheme : item)))
+        setWarnings((prev) => [...prev, ...warnings])
+        setBusyLabel(completed < 3 ? `已完成 ${completed}/3 套，其余仍在生成…` : '')
+        if (completed === 1) {
+          setSummary(`方案 ${scheme.id} 已生成：${scheme.design_rationale}`)
+        }
+      }
+
+      const failPosterAngle = (angle, message) => {
+        setSchemes((prev) =>
+          prev.map((item) =>
+            item.id === angle.id
+              ? { ...item, pending: false, pendingError: message, name: '生成失败' }
+              : item,
+          ),
+        )
+        setError(`方案 ${angle.id} 生成失败：${message}`)
+      }
+
+      try {
+        await Promise.all(
+          POSTER_ANGLES.map(async (angle) => {
+            try {
+              const { scheme, warnings } = await requestOnePoster({
+                angle,
+                photoDataUrl: activePhoto?.dataUrl,
+                photo2DataUrl: photo2?.dataUrl,
+                date,
+                signal: controller.signal,
+              })
+              applyPosterScheme(angle, scheme, warnings)
+            } catch (err) {
+              if (isRateLimited(err)) {
+                // 三路并行撞上限流：这一套先排队，等其余返回后串行重试。
+                rateLimited.push(angle)
+                setSchemes((prev) =>
+                  prev.map((item) =>
+                    item.id === angle.id ? { ...item, name: '限流排队…' } : item,
+                  ),
+                )
+                return
+              }
+              const message =
+                err.name === 'AbortError' ? '请求超时（150 秒）' : err.message || '生成失败'
+              failPosterAngle(angle, message)
+            }
+          }),
+        )
+
+        for (const angle of rateLimited) {
+          await new Promise((resolve) => setTimeout(resolve, 1200))
+          setBusyLabel(`遇到限流，正在串行重试方案 ${angle.id}…`)
+          const retryController = new AbortController()
+          const retryTimer = setTimeout(() => retryController.abort(), 90_000)
+          try {
+            const { scheme, warnings } = await requestOnePoster({
+              angle,
+              photoDataUrl: activePhoto?.dataUrl,
+              photo2DataUrl: photo2?.dataUrl,
+              date,
+              signal: retryController.signal,
+            })
+            applyPosterScheme(angle, scheme, warnings)
+          } catch (err) {
+            const message =
+              err.name === 'AbortError'
+                ? '限流重试超时（90 秒）'
+                : err.message || '限流重试失败'
+            failPosterAngle(angle, message)
+          } finally {
+            clearTimeout(retryTimer)
+          }
+        }
+
+        setSummary(
+          completed
+            ? `已完成 ${completed}/3 套海报${firstId ? `，推荐 ${firstId}` : ''}。`
+            : '三套海报均未生成，请重试。',
+        )
+        if (firstId) {
+          setRecommended(firstId)
+          const idx = POSTER_ANGLES.findIndex((angle) => angle.id === firstId)
+          if (idx >= 0) setActive(idx)
+        }
+      } finally {
+        clearTimeout(timer)
+        abortRef.current = null
+        setBusy(false)
+        setBusyLabel('')
+      }
+    },
+    [apiKey, busy, photo, photo2, requestOnePoster],
+  )
+
+  const retryPosterAngle = useCallback(
+    async (id) => {
+      const angle = posterAngle(id)
+      if (!angle) return
+      setSchemes((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, pending: true, pendingError: '', name: '生成中…' } : item,
+        ),
+      )
+      try {
+        const { scheme, warnings } = await requestOnePoster({
+          angle,
+          photoDataUrl: photo?.dataUrl,
+          photo2DataUrl: photo2?.dataUrl,
+          date: chineseDate(),
+        })
+        setSchemes((prev) => prev.map((item) => (item.id === id ? scheme : item)))
+        setWarnings((prev) => [...prev, ...warnings])
+        setError('')
+      } catch (err) {
+        const message = err.message || '生成失败'
+        setSchemes((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, pending: false, pendingError: message, name: '生成失败' } : item,
+          ),
+        )
+        setError(`方案 ${id} 生成失败：${message}`)
+      }
+    },
+    [photo, photo2, requestOnePoster],
+  )
+
+  /** 切换画面格式：海报缺少规格时补默认模板（旧稿 / 报纸转海报）。 */
+  const changeFormat = useCallback((next) => {
+    if (!['newspaper', 'poster'].includes(next)) return
+    setFormat(next)
+    setChatReference(null)
+    if (next === 'poster') {
+      setSchemes((prev) =>
+        prev.map((scheme) =>
+          scheme.pending || scheme.poster
+            ? scheme
+            : { ...scheme, poster: defaultPosterSpec(scheme, { angle: scheme.id }) },
+        ),
+      )
+    }
+  }, [])
+
+  /** 检查器改海报：文案 / 模板 / 配色 / 字体 / 图案参数，全部本地重渲染。 */
+  const patchPoster = useCallback(
+    (patch = {}) => {
+      setSchemes((prev) =>
+        prev.map((scheme, index) => {
+          if (index !== active || scheme.pending) return scheme
+          const next = {
+            ...scheme,
+            style: { ...scheme.style },
+            content: { ...scheme.content },
+            poster: scheme.poster ? { ...scheme.poster, art: { ...scheme.poster.art } } : scheme.poster,
+          }
+          if (patch.color_preset) {
+            next.color_preset = patch.color_preset
+            next.style.accent_color =
+              COLOR_PRESETS[patch.color_preset]?.accent || next.style.accent_color
+          }
+          if (patch.font_pairing) next.font_pairing = patch.font_pairing
+          if (patch.style) next.style = { ...next.style, ...patch.style }
+          if (patch.content) next.content = { ...next.content, ...patch.content }
+          if (patch.poster) {
+            next.poster = mergePosterPatch(next.poster || {}, patch.poster)
+          }
+          return next
+        }),
+      )
+    },
+    [active],
+  )
+
   const generate = useCallback(async (options = {}) => {
+    if (format === 'poster') {
+      await generatePoster(options)
+      return
+    }
     const activePhoto = 'photo' in options ? options.photo : photo
     if (busy && !options.force) return
     if (!apiKey.trim()) {
@@ -623,7 +952,7 @@ export function App() {
       const result = await requestSchemes({
         apiKey,
         settings,
-        system: designMode ? buildDesignSystemPrompt() : buildSystemPrompt({ date }),
+        system: designMode ? buildDesignSystemPrompt({ format }) : buildSystemPrompt({ date, format }),
         user: buildUserPrompt({
           description,
           photoMeta: activePhoto,
@@ -678,6 +1007,13 @@ export function App() {
         setBusyLabel('正在准备 SVG 图案…')
         finalSchemes = await rasterizeArtworks(finalSchemes)
       }
+      // 海报 skill 的输出自检：标题行数、注记、艺术字覆盖等软问题进「生成摘要」
+      if (format === 'poster') {
+        const posterWarnings = finalSchemes.flatMap((scheme) => auditPosterScheme(scheme))
+        if (posterWarnings.length) {
+          finalWarnings = [...finalWarnings, ...posterWarnings]
+        }
+      }
       applyResult({ ...normalized, schemes: finalSchemes, warnings: finalWarnings })
       setDemoMode(false)
       showToast(
@@ -699,7 +1035,7 @@ export function App() {
       setBusy(false)
       setBusyLabel('')
     }
-  }, [apiKey, applyResult, busy, description, designMode, format, freeMode, mode, photo, settings, showToast])
+  }, [apiKey, applyResult, busy, description, designMode, format, freeMode, generatePoster, mode, photo, settings, showToast])
 
   const generateImage = useCallback(async () => {
     if (busy) return
@@ -1089,7 +1425,9 @@ export function App() {
         const result = await requestEdit({
           apiKey,
           settings,
-          system: designMode ? buildDesignChatSystemPrompt() : buildChatSystemPrompt(),
+          system: designMode
+            ? buildDesignChatSystemPrompt({ format })
+            : buildChatSystemPrompt({ format }),
           user: buildChatUserPrompt({ scheme, format, instruction, history }),
           signal: controller.signal,
         })
@@ -1176,6 +1514,25 @@ export function App() {
     setSchemes((prev) =>
       prev.map((scheme, index) => {
         if (index !== active) return scheme
+        if (format === 'poster') {
+          const template = getPosterTemplate(scheme.poster?.template)
+          return {
+            ...scheme,
+            poster: {
+              ...(scheme.poster || defaultPosterSpec(scheme, { angle: scheme.id })),
+              variant: 'quiet',
+              artFont: template.artFont,
+              art: {
+                source: 'recipe',
+                recipe: template.recipe,
+                params: {},
+                seed: 0,
+                shapes: [],
+              },
+              textures: { paper: 'plain', grain: 0 },
+            },
+          }
+        }
         if (designMode) {
           const cleaned = { ...scheme, design_layout: null }
           return {
@@ -1189,7 +1546,13 @@ export function App() {
         return rebuildLayout(scheme, format, Boolean(photo2))
       }),
     )
-    showToast(designMode ? '已清除自定义版式，回到模板' : '版式已重置')
+    showToast(
+      format === 'poster'
+        ? '海报版式已重置为模板默认'
+        : designMode
+          ? '已清除自定义版式，回到模板'
+          : '版式已重置',
+    )
   }, [active, designMode, format, photo2, showToast])
 
   const doExport = useCallback(async () => {
@@ -1205,7 +1568,9 @@ export function App() {
       })
       await downloadDataUrl(
         result.dataUrl,
-        `头版智造局_${activeScheme.name}_${FORMATS[format].label}_${shortDate()}.png`,
+        `头版智造局_${activeScheme.name}_${FORMATS[format].label}_${shortDate()}${
+          format === 'poster' ? `_assets-${POSTER_ASSET_VERSION}` : ''
+        }.png`,
       )
       showToast('PNG 已导出（2× 分辨率）')
     } catch (err) {
@@ -1223,6 +1588,28 @@ export function App() {
       const st = resolveStyle(activeScheme)
       const sandbox = sandboxRef.current
       if (!sandbox) throw new Error('画布还没准备好，请稍后再试')
+      if (format === 'poster' && activeScheme.poster) {
+        // 先开窗（仍在点击手势内），再异步取带字体的 SVG，避免被弹窗拦截。
+        const printWin = openPrintWindow()
+        try {
+          const result = await sandbox.exportSvg()
+          printSvgDocument(result.svg, {
+            widthMm: 200,
+            heightMm: 250,
+            title: `头版智造局 · ${activeScheme.name}`,
+            win: printWin,
+          })
+        } catch (err) {
+          try {
+            printWin.close()
+          } catch {
+            /* ignore */
+          }
+          throw err
+        }
+        showToast('已打开矢量打印，可直接另存为 PDF')
+        return
+      }
       const result = await sandbox.exportPng({
         scale: 2,
         background: st.palette.background,
@@ -1237,7 +1624,7 @@ export function App() {
     } finally {
       setExporting(false)
     }
-  }, [activeScheme, exporting, format])
+  }, [activeScheme, exporting, format, showToast])
 
   const regenerate = useCallback(() => {
     if (keyReady) generate()
@@ -1245,6 +1632,10 @@ export function App() {
   }, [generate, keyReady, loadDemo])
 
   const cycleStylePack = useCallback(() => {
+    if (format === 'poster') {
+      showToast('海报使用专用模板，不参与风格包切换', 'error')
+      return
+    }
     const current = schemesRef.current
     if (!current.length) return
     const next = nextStylePack(stylePack)
@@ -1257,7 +1648,7 @@ export function App() {
     setError('')
     setSummary(`已换成「${next.name}」：${next.tagline}。内容保留，只换模板与配色。`)
     showToast(`已换成 ${next.name}`)
-  }, [photo2, stylePack, showToast])
+  }, [format, photo2, stylePack, showToast])
 
   const changeMode = useCallback(
     (next) => {
@@ -1282,6 +1673,10 @@ export function App() {
     setMode('free')
     setModeWarning(false)
     setChatReference(null)
+    if (format === 'poster') {
+      showToast('自由模式：海报由图案配方填充视觉区')
+      return
+    }
     const withFallback = schemes.map((scheme) =>
       scheme.artwork?.dataUrl
         ? scheme
@@ -1292,7 +1687,7 @@ export function App() {
       .then((next) => setSchemes(next))
       .catch(() => {})
     showToast('自由模式：无图时由模型生成 SVG 线条图案')
-  }, [description, schemes, showToast])
+  }, [description, format, schemes, showToast])
 
   const imageProvider =
     IMAGE_PROVIDERS.find((p) => p.id === settings.image?.provider) || IMAGE_PROVIDERS[0]
@@ -1330,15 +1725,15 @@ export function App() {
         >
           <div class="free-mode-warning">
             <p>
-              自由模式会在<strong>没有照片</strong>时，由模型生成简单的 SVG
-              线条图案；有照片时仍直接使用照片。
+              <strong>海报</strong>：无照片时由图案配方（半调、斜切、网格、点阵等）填充视觉区，
+              与文案一起渲染成一张 SVG，不再使用图标库。
             </p>
             <p>
-              当前版本生成 SVG 而不是位图。纯生图模型通常返回图片，无法直接走
-              JSON / SVG 管线；推荐选择擅长 SVG、代码与结构化输出的模型。
+              <strong>报纸</strong>：自由模式仍从 94 枚图标库里选象征物，组合成线条图案；
+              有照片时优先使用照片。
             </p>
             <p class="free-mode-warning-note">
-              图案只使用简单线条和象征符号；抽象名词会优先用荧光棒、樱花、鲸尾等符号表达。
+              推荐使用支持结构化 JSON 输出的排版模型；纯生图模型返回位图，不能直接走规格渲染管线。
             </p>
             <div class="free-mode-actions">
               <button class="btn" type="button" onClick=${() => setModeWarning(false)}>
@@ -1360,7 +1755,7 @@ export function App() {
           description=${description}
           setDescription=${setDescription}
           format=${format}
-          setFormat=${setFormat}
+          setFormat=${changeFormat}
           settings=${settings}
           setSettings=${setSettings}
           apiKey=${apiKey}
@@ -1415,6 +1810,7 @@ export function App() {
                 setChatReference(null)
               }}
               onRegenerate=${regenerate}
+              onRetryPoster=${retryPosterAngle}
             />
           `}
           ${view === 'editor' &&
@@ -1468,10 +1864,8 @@ export function App() {
             onSendChat=${sendChat}
             onUndoChat=${undoChat}
             onChangeStyle=${updateStyle}
-            onChangeFormat=${(next) => {
-              setFormat(next)
-              setChatReference(null)
-            }}
+            onChangeFormat=${changeFormat}
+            onPosterChange=${patchPoster}
             onResetLayout=${resetLayout}
             onOpenJson=${() => setModal('json')}
             onExport=${doExport}

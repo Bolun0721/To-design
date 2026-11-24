@@ -9,6 +9,7 @@ import {
   VARIANTS,
 } from '../config/presets.js'
 import { ART_FONTS, ART_FONT_TABLE_TEXT } from '../config/artFonts.js'
+import { posterChatGuard, posterSkillSection } from './posterSkill.js'
 
 const TEMPLATE_LIST = Object.values(VARIANTS)
   .map(
@@ -81,7 +82,8 @@ const SCHEMA = `{
   ]
 }`
 
-export function buildDesignSystemPrompt() {
+export function buildDesignSystemPrompt({ format = 'newspaper' } = {}) {
+  const posterBlock = posterSkillSection({ format, mode: 'design' })
   return `# 角色
 
 你是「头版智造局」的资深编辑设计总监、视觉传达设计师和版式系统设计师。你不是一个只从固定模板里挑样式的排版助手，而是要根据照片、用户描述和场景意图，独立制定有审美判断、有差异、可实际渲染的三套设计方案。
@@ -143,7 +145,7 @@ ${ART_FONT_TABLE_TEXT}
 - 艺术字与版式必须对应，例如 bauhaus 用 bauhaus、卡带未来用 cassette_futurism，不要跨风格硬套。
 - 不要为了用艺术字而编造品牌名、真实机构、活动名或英文新闻；可以写氛围短句。
 - 位置不要贪多：海报 2–3 个足够，不要让英文装饰盖过中文标题。三套方案不必都使用。
-
+${posterBlock ? `\n${posterBlock}\n` : ''}
 # 输入
 
 用户照片、描述、当前日期、画面格式（报纸 A4 / 海报 4:5）由用户消息提供。只使用真实可观察的信息和用户给出的背景；信息不足时做低风险假设，不要编造事实。
@@ -208,7 +210,8 @@ ${SCHEMA}
 三套方案的 id 必须是 A/B/C。推荐方案在 summary 中点明，例如「推荐 B：视觉重心最稳」。只输出一个合法 JSON 对象，不要输出 JSON 之外的任何内容。`
 }
 
-export function buildDesignChatSystemPrompt() {
+export function buildDesignChatSystemPrompt({ format = 'newspaper' } = {}) {
+  const posterGuard = posterChatGuard({ format })
   return `# 角色
 
 你是「头版智造局」的设计总监，正在和用户迭代当前这一版报纸/海报。设计模式允许你重新组织版式，而不是只做字号或颜色的微调。
@@ -235,6 +238,7 @@ export function buildDesignChatSystemPrompt() {
 - layout_placements：绝对坐标，例如 [{"block_id":"headline","x":4,"y":10,"w":60,"h":8}]；左上角定位，必须在纸张内
 - extra_blocks：新增板块（设计模式），字段同生成；type 仅限 masthead / dateline / headline / subhead / byline / caption / body / pullquote / note / footer
 - remove_blocks：删除当前模板中不需要的板块 id
+${posterGuard ? '- poster（仅海报）：{ template, variant, art: { recipe, params, seed } }，字段含义见下方「海报微调」' : ''}
 
 # 页脚与同类型板块
 
@@ -260,7 +264,7 @@ ${PRESET_LIST}
 # 字体白名单
 
 ${FONT_LIST}
-
+${posterGuard ? `\n${posterGuard}\n` : ''}
 # 输出
 
 {

@@ -1,0 +1,25 @@
+{
+  "version": "v0.24.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.24.0",
+  "description": "恢复影像海报 / 原色积木 / 斜切宣言三套模板，与新四套并存（共 7 套 × 2 变体）；修复检查器参数滑块清掉 art.recipe 的嵌套合并 bug；资产版本 4.1.0",
+  "files": [
+    "posterPrompt.js",
+    "posterSpec.js",
+    "posterTemplates.js",
+    "posterPatterns.js",
+    "posterSkill.js",
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "llm.js"
+  ],
+  "notes": [
+    "7 套模板：新四 + poster_kino / poster_primary / poster_diagonal",
+    "角度：A 档案/信号，B 警戒/原色/斜切，C 勘测/影像",
+    "检查器下拉可选全部 7 套",
+    "mergePosterPatch 保留 art.recipe / seed，参数滑块不再清图案",
+    "资产版本：4.1.0"
+  ]
+}

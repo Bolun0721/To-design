@@ -21,6 +21,7 @@ const SRCDOC = `<!doctype html>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/fonts/web/fonts.css" />
 <link rel="stylesheet" href="/src/styles.css" />
 <link rel="stylesheet" href="/src/theme-chat.css" />
 <style>
@@ -201,13 +202,17 @@ export function IframePaper({
         onReferenceBlock?.(data.block)
         return
       }
-      if (data.type === 'export-result' || data.type === 'export-error') {
+      if (
+        data.type === 'export-result' ||
+        data.type === 'export-svg-result' ||
+        data.type === 'export-error'
+      ) {
         const pending = pendingRef.current.get(data.requestId)
         if (!pending) return
         pendingRef.current.delete(data.requestId)
         clearTimeout(pending.timer)
-        if (data.type === 'export-result') pending.resolve(data)
-        else pending.reject(new Error(data.message || '导出失败'))
+        if (data.type === 'export-error') pending.reject(new Error(data.message || '导出失败'))
+        else pending.resolve(data)
       }
     }
 
@@ -235,6 +240,21 @@ export function IframePaper({
             { source: 'fpl-parent', type: 'export', requestId, scale: exportScale, background },
             '*',
           )
+        }),
+      exportSvg: () =>
+        new Promise((resolve, reject) => {
+          const win = iframeRef.current?.contentWindow
+          if (!win || !ready) {
+            reject(new Error('画布还没准备好，请稍后再试'))
+            return
+          }
+          const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          const timer = setTimeout(() => {
+            pendingRef.current.delete(requestId)
+            reject(new Error('导出 SVG 超时，请重试'))
+          }, 45000)
+          pendingRef.current.set(requestId, { resolve, reject, timer })
+          win.postMessage({ source: 'fpl-parent', type: 'export-svg', requestId }, '*')
         }),
     }
     return () => {

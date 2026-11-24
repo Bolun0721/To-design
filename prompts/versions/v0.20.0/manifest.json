@@ -1,0 +1,24 @@
+{
+  "version": "v0.20.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.20.0",
+  "description": "海报 M2：补齐 6 套海报模板 × 2 变体（新增影像 / 原色积木 / 手作志），对话微调支持换模板 / 变体 / 配方 / seed；三路角度互斥并覆盖全部模板；逐张唯一 clip id 修复画廊多图裁切串台",
+  "files": [
+    "posterPrompt.js",
+    "posterSpec.js",
+    "posterTemplates.js",
+    "posterPatterns.js",
+    "posterSkill.js",
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "llm.js"
+  ],
+  "notes": [
+    "海报模板 6 套：editorial / kino / swiss / primary / diagonal / zine，各 quiet + loud",
+    "三路角度模板子集互斥：A=editorial|kino，B=primary|swiss，C=diagonal|zine",
+    "对话 patch 允许 poster.template / poster.variant / poster.art.*；坐标与 layout_variant 不参与",
+    "PNG 导出仍嵌入艺术字与拉丁 webfont；constructivism 2.5MB 不进入海报链路"
+  ]
+}

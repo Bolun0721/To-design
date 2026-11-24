@@ -1,0 +1,25 @@
+{
+  "version": "v0.22.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.22.0",
+  "description": "海报 M3：双图拼贴、429 降并发、矢量 PDF（打印内联 SVG + 字体嵌入）、6 款艺术字 latin 子集化（constructivism 2.5MB→28KB 重新启用）、资产版本 3.0.0",
+  "files": [
+    "posterPrompt.js",
+    "posterSpec.js",
+    "posterTemplates.js",
+    "posterPatterns.js",
+    "posterSkill.js",
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "llm.js"
+  ],
+  "notes": [
+    "双图：子图按模板 secondary 位置拼贴（旋转白边小照片），单图/无图回退",
+    "429：三路并行中失败的一路排队，其余返回后串行重试，不整体降速",
+    "矢量 PDF：sandbox 返回带 @font-face 的 SVG，printSvgDocument 打印内联 SVG",
+    "字体：public/fonts/subset/ 6 款 latin 子集；styles.css 与 POSTER_ART_FONTS 指向子集",
+    "资产版本：SVG data-assets + meta.assetsVersion + PNG 文件名"
+  ]
+}

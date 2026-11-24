@@ -8,6 +8,7 @@ import htm from 'htm'
 import { Paper } from '../components/Paper.js'
 import { resolveStyle } from '../config/presets.js'
 import { renderTreatedPhoto } from '../lib/image.js'
+import { exportPosterPng, posterFontFaceCss, serializePosterSvg } from '../lib/poster/export.js'
 
 const html = htm.bind(h)
 const root = document.getElementById('paper-root')
@@ -192,6 +193,7 @@ function draw() {
   document.documentElement.style.backgroundColor = background
   document.body.style.backgroundColor = background
 
+  const posterMode = currentState.format === 'poster' && Boolean(currentState.scheme?.poster?.template)
   render(
     html`
       <${Paper}
@@ -201,7 +203,7 @@ function draw() {
         photo2=${currentState.photo2}
         scale=${currentState.scale}
         freeMode=${Boolean(currentState.freeMode)}
-        interactive=${true}
+        interactive=${!posterMode}
         paperRef=${paperRef}
         disclaimer=${currentState.disclaimer}
         onBlockCommit=${(id, patch) => post({ type: 'block', id, patch })}
@@ -211,8 +213,12 @@ function draw() {
     root,
   )
 
-  bindSelection()
-  applySelection()
+  if (posterMode) {
+    clearSelection()
+  } else {
+    bindSelection()
+    applySelection()
+  }
 
   if (!announced) {
     announced = true
@@ -224,6 +230,26 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
   if (!currentState) throw new Error('画布尚未就绪')
   const paper = paperRef.current || document.querySelector('.paper')
   if (!paper) throw new Error('画布尚未就绪')
+
+  if (currentState.format === 'poster' && currentState.scheme?.poster) {
+    const svgEl = paper.querySelector('svg[data-poster="1"]')
+    if (!svgEl) throw new Error('海报画布尚未就绪')
+    const st = resolveStyle(currentState.scheme)
+    const result = await exportPosterPng(svgEl, {
+      scheme: currentState.scheme,
+      scale,
+      background: background || st.palette.background,
+    })
+    post({
+      type: 'export-result',
+      requestId,
+      dataUrl: result.dataUrl,
+      width: result.width,
+      height: result.height,
+    })
+    return
+  }
+
   if (!window.html2canvas) throw new Error('导出组件未加载，请刷新页面')
 
   if (document.fonts?.ready) {
@@ -322,6 +348,30 @@ async function exportPaper({ requestId, scale = 2, background = '#FFFFFF' }) {
   }
 }
 
+async function exportSvg({ requestId }) {
+  if (!currentState || currentState.format !== 'poster' || !currentState.scheme?.poster) {
+    throw new Error('当前不是 SVG 海报')
+  }
+  const paper = paperRef.current || document.querySelector('.paper')
+  const svgEl = paper?.querySelector('svg[data-poster="1"]')
+  if (!svgEl) throw new Error('海报画布尚未就绪')
+  if (document.fonts?.ready) {
+    try {
+      await document.fonts.ready
+    } catch {
+      /* ignore */
+    }
+  }
+  const fontCss = await posterFontFaceCss(currentState.scheme)
+  post({
+    type: 'export-svg-result',
+    requestId,
+    svg: serializePosterSvg(svgEl, fontCss),
+    width: 800,
+    height: 1000,
+  })
+}
+
 window.addEventListener('message', (event) => {
   if (event.source !== window.parent) return
   const data = event.data
@@ -338,6 +388,16 @@ window.addEventListener('message', (event) => {
         type: 'export-error',
         requestId: data.requestId,
         message: err.message || '导出失败',
+      })
+    })
+  }
+
+  if (data.type === 'export-svg') {
+    exportSvg(data).catch((err) => {
+      post({
+        type: 'export-error',
+        requestId: data.requestId,
+        message: err.message || '导出 SVG 失败',
       })
     })
   }

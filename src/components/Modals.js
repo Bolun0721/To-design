@@ -2,6 +2,8 @@ import { h } from 'preact'
 import { useEffect } from 'preact/hooks'
 import htm from 'htm'
 import { DESIGN_SKILL, DESIGN_SKILL_BULLETS } from '../agent/designSkill.js'
+import { buildPosterSystemPrompt, POSTER_SKILL_BULLETS } from '../agent/posterPrompt.js'
+import { POSTER_SPEC_VERSION } from '../agent/posterSpec.js'
 
 const html = htm.bind(h)
 
@@ -36,10 +38,11 @@ export function Modal({ title, subtitle, onClose, children, narrow = false }) {
 }
 
 export function SkillModal({ onClose }) {
+  const posterSkill = buildPosterSystemPrompt()
   return html`
     <${Modal}
       title="内置设计 Skill"
-      subtitle="蒸馏自 garden-skills / web-design-engineer 的设计纪律，与报纸编辑设计合并，随系统提示词一起发送给模型。"
+      subtitle="两份 skill：通用编辑设计纪律（报纸 / 海报共用）+ 海报生成 skill（只输出规格，由代码渲染成 SVG）。"
       onClose=${onClose}
     >
       <div class="skill-grid">
@@ -52,8 +55,24 @@ export function SkillModal({ onClose }) {
           `,
         )}
       </div>
-      <p class="skill-rule">Skill 全文</p>
+      <p class="skill-rule">通用 Skill 全文</p>
       <pre>${DESIGN_SKILL}</pre>
+
+      <p class="skill-rule">海报 Skill · spec v${POSTER_SPEC_VERSION} · 三路并行时每套注入一次</p>
+      <div class="skill-grid">
+        ${POSTER_SKILL_BULLETS.map(
+          ([title, desc]) => html`
+            <div class="skill-card">
+              <div class="sk-t">${title}</div>
+              <div class="sk-d">${desc}</div>
+            </div>
+          `,
+        )}
+      </div>
+      <details class="skill-details">
+        <summary>展开海报 Skill 全文（模板 / 配方 / 输出 schema）</summary>
+        <pre>${posterSkill}</pre>
+      </details>
     <//>
   `
 }

@@ -5,7 +5,7 @@ export const ART_FONTS = {
     label: '构成主义',
     family: 'FPL Constructivism',
     variant: 'constructivism',
-    file: '/fonts/fpl-constructivism.ttf',
+    file: '/fonts/subset/fpl-constructivism.ttf',
     note: '粗重、几何、宣传画感',
   },
   bauhaus: {
@@ -13,7 +13,7 @@ export const ART_FONTS = {
     label: '包豪斯',
     family: 'FPL Bauhaus',
     variant: 'bauhaus',
-    file: '/fonts/fpl-bauhaus.otf',
+    file: '/fonts/subset/fpl-bauhaus.otf',
     note: '几何无衬线、秩序感',
   },
   nasa_punk: {
@@ -21,7 +21,7 @@ export const ART_FONTS = {
     label: 'NASA 朋克',
     family: 'FPL Nasa',
     variant: 'nasa_punk',
-    file: '/fonts/fpl-nasa.otf',
+    file: '/fonts/subset/fpl-nasa.otf',
     note: '复古未来、技术标签',
   },
   de_stijl: {
@@ -29,7 +29,7 @@ export const ART_FONTS = {
     label: '风格派',
     family: 'FPL Stencil',
     variant: 'de_stijl',
-    file: '/fonts/fpl-stencil.ttf',
+    file: '/fonts/subset/fpl-stencil.ttf',
     note: '模板字、硬边几何',
   },
   swiss_style: {
@@ -37,7 +37,7 @@ export const ART_FONTS = {
     label: '瑞士风格',
     family: 'FPL Swiss',
     variant: 'swiss_style',
-    file: '/fonts/fpl-swiss.ttf',
+    file: '/fonts/subset/fpl-swiss.ttf',
     note: '中性、精确、国际主义',
   },
   cassette_futurism: {
@@ -45,7 +45,7 @@ export const ART_FONTS = {
     label: '卡带未来',
     family: 'FPL Cassette',
     variant: 'cassette_futurism',
-    file: '/fonts/fpl-cassette.ttf',
+    file: '/fonts/subset/fpl-cassette.ttf',
     note: '像素 / 磁带 / CRT 感',
   },
 }

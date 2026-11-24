@@ -21,6 +21,9 @@ import {
 } from '../config/designLayout.js'
 import { clampText, clamp, round, charLen } from '../lib/format.js'
 import { cleanText } from './validate.js'
+import { posterChatGuard } from './posterSkill.js'
+import { POSTER_TEMPLATES, POSTER_VARIANTS, getPosterTemplate } from '../config/posterTemplates.js'
+import { POSTER_RECIPE_IDS, resolveRecipeParams } from '../config/posterPatterns.js'
 
 const TREATMENTS = ['original', 'halftone_mono', 'duotone']
 const TEXT_LIMITS = {
@@ -41,7 +44,8 @@ export const CHAT_SUGGESTIONS = [
   '副标题写得更克制',
 ]
 
-export function buildChatSystemPrompt() {
+export function buildChatSystemPrompt({ format = 'newspaper' } = {}) {
+  const posterGuard = posterChatGuard({ format })
   return `# 角色
 
 你是「头版智造局」的版式编辑助手。用户会用一句自然语言要求微调**当前这一版**报纸或海报。
@@ -58,6 +62,7 @@ export function buildChatSystemPrompt() {
 - content.body_blocks：2–4 段，合计 120–220 字；只有用户要求重写正文时才提供
 - layout_moves：对当前格式的版块做小幅微调，dx / dy 为百分比点（-${MOVE_LIMITS.dx}..${MOVE_LIMITS.dx}），dw 为宽度的百分比点（-${MOVE_LIMITS.dw}..${MOVE_LIMITS.dw}）
 - layout_swaps：互换两个板块的完整占位矩形，例如 [["headline","pullquote"]]；用户要求「交换位置」时优先使用，不要用两段方向相反的 layout_moves
+${posterGuard ? '- poster（仅海报）：{ template, variant, art: { recipe, params, seed } }，字段含义见下方「海报微调」' : ''}
 
 # 硬规则
 
@@ -70,7 +75,7 @@ export function buildChatSystemPrompt() {
 7. 保持编辑设计纪律：一个强调色、层级清楚、不堆装饰；不要引入渐变、圆角卡片、emoji。
 8. 如果用户消息包含「【引用板块：名称（block_id）】」，优先只改该板块对应的 content 或 layout_moves，不要动其他板块。
 9. 交换两个板块时使用 layout_swaps（原子交换占位矩形）；不要用两个相对位移模拟，否则大板块会在中途重叠。
-
+${posterGuard ? `\n${posterGuard}\n` : ''}
 # 输出结构
 
 {
@@ -255,6 +260,69 @@ export function applyChatPatch(
   }
 
   let layout = next.layouts[format]
+  if (scheme.poster) {
+    // 海报：允许换模板 / 变体 / 配方 / seed；版块坐标与 layout_variant 不参与。
+    const posterPatch = patch.poster && typeof patch.poster === 'object' ? patch.poster : null
+    if (posterPatch) {
+      const poster = {
+        ...scheme.poster,
+        art: { ...(scheme.poster.art || {}) },
+      }
+      if (POSTER_TEMPLATES[posterPatch.template]) {
+        const tpl = getPosterTemplate(posterPatch.template)
+        poster.template = tpl.id
+        poster.artFont = tpl.artFont
+        poster.art = {
+          source: 'recipe',
+          recipe: tpl.recipe,
+          params: {},
+          seed: Number(poster.art.seed) || 0,
+          shapes: Array.isArray(poster.art.shapes) ? poster.art.shapes : [],
+        }
+        poster.variant = POSTER_VARIANTS.includes(posterPatch.variant) ? posterPatch.variant : 'quiet'
+        next.color_preset = tpl.palette
+        next.font_pairing = tpl.font
+        next.style = {
+          ...next.style,
+          accent_color: COLOR_PRESETS[tpl.palette]?.accent || next.style.accent_color,
+        }
+        changed = true
+      }
+      if (POSTER_VARIANTS.includes(posterPatch.variant) && posterPatch.variant !== poster.variant) {
+        poster.variant = posterPatch.variant
+        changed = true
+      }
+      const art = posterPatch.art && typeof posterPatch.art === 'object' ? posterPatch.art : null
+      if (art) {
+        if (POSTER_RECIPE_IDS.includes(art.recipe) && art.recipe !== poster.art.recipe) {
+          poster.art.recipe = art.recipe
+          poster.art.params = {}
+          changed = true
+        }
+        if (art.params && poster.art.recipe) {
+          const params = resolveRecipeParams(poster.art.recipe, {
+            ...(poster.art.params || {}),
+            ...art.params,
+          })
+          if (JSON.stringify(params) !== JSON.stringify(poster.art.params)) {
+            poster.art.params = params
+            changed = true
+          }
+        }
+        const seed = Number(art.seed)
+        if (Number.isFinite(seed)) {
+          const nextSeed = Math.min(9999, Math.max(0, Math.round(seed)))
+          if (nextSeed !== poster.art.seed) {
+            poster.art.seed = nextSeed
+            changed = true
+          }
+        }
+      }
+      next.poster = poster
+    }
+    return { scheme: next, changed, warning: '' }
+  }
+
   const originalRects = new Map(layout.map((block) => [block.id, rectOf(block)]))
   const originalGeometry = new Map(
     layout.map((block) => [block.id, { x: block.x, y: block.y, w: block.w, h: block.h }]),

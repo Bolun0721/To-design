@@ -1,0 +1,25 @@
+{
+  "version": "v0.23.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.23.0",
+  "description": "海报 M4 视觉重做：淘汰瑞士网格与手作志，按《明日方舟》官网档案/新闻与《明日方舟：终末地》官网主视觉重做四套模板（干员档案 / 终末信号 / 警戒通告 / 勘测记录）；新增切角主图、单色照片、巨大空心字、点阵/等高线/三色条/切角画框；资产版本 4.0.0",
+  "files": [
+    "posterPrompt.js",
+    "posterSpec.js",
+    "posterTemplates.js",
+    "posterPatterns.js",
+    "posterSkill.js",
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "llm.js"
+  ],
+  "notes": [
+    "四套模板：poster_ark_file / poster_endfield_signal / poster_ark_hazard / poster_endfield_survey",
+    "视觉研究：官方站点 + Poster_skill_dir/endfield-ui；只提炼结构，不使用官方字体/标志/图标/截图/文案",
+    "渲染新增：heroShape cut、photoFilter mono、ghost outline、cutFrame、triColor、contour、scrim 前景层",
+    "角度：A 档案/信号，B 警戒，C 勘测",
+    "资产版本：4.0.0"
+  ]
+}

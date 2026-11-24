@@ -112,7 +112,11 @@ export function Editor({
             适应
           </button>
         </div>
-        <span class="stage-hint">拖动版块 · 单击选中 · 双击改字 / 卡片引用</span>
+        <span class="stage-hint">
+          ${format === 'poster'
+            ? '海报画布只读 · 改文案 / 配色 / 图案请用右侧检查器'
+            : '拖动版块 · 单击选中 · 双击改字 / 卡片引用'}
+        </span>
       </div>
     </section>
   `

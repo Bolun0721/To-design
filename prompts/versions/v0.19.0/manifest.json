@@ -1,0 +1,24 @@
+{
+  "version": "v0.19.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.19.0",
+  "description": "海报 SVG 重构 M1：海报专用模板 + 图案配方 + 单套规格；三路并行生成、只读画布 + 检查器、PNG/PDF 导出（字体嵌入）；超大艺术字（constructivism）退出海报链路；报纸链路不变",
+  "files": [
+    "posterPrompt.js",
+    "posterSpec.js",
+    "posterTemplates.js",
+    "posterPatterns.js",
+    "posterSkill.js",
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "llm.js"
+  ],
+  "notes": [
+    "海报生成走 posterPrompt.js（单套、按角度），不再调用 systemPrompt/designPrompt 的 poster 分支",
+    "posterPrompt 只输出文案 + 模板 id + 配色/字体 id + 配方参数 + seed，禁止 SVG/hex/坐标",
+    "海报模板与配方是代码资产（posterTemplates.js / posterPatterns.js），提示词目录由它们生成",
+    "报纸链路（9 套模板、图标库、html2canvas）保持原样"
+  ]
+}

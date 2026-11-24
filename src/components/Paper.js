@@ -1,8 +1,9 @@
 import { h } from 'preact'
-import { useEffect, useRef } from 'preact/hooks'
+import { useEffect, useMemo, useRef } from 'preact/hooks'
 import htm from 'htm'
 import { FORMATS, resolveStyle, headlinePx, hexHue } from '../config/presets.js'
 import { chineseDate, weekdayCN, clamp, round } from '../lib/format.js'
+import { renderPosterSvg } from '../lib/poster/render.js'
 
 const html = htm.bind(h)
 
@@ -472,6 +473,39 @@ export function Paper({
           </div>
         `}
         ${interactive && html`<span class="block-handle" data-resize=${block.id} title="拖动缩放"></span>`}
+      </div>
+    `
+  }
+
+  const posterMode = format === 'poster' && Boolean(scheme?.poster?.template) && !scheme?.pending
+  const posterSvg = useMemo(() => {
+    if (!posterMode) return ''
+    try {
+      return renderPosterSvg(scheme, { photo, photo2 }).svg
+    } catch (err) {
+      console.warn('海报渲染失败', err)
+      return ''
+    }
+  }, [posterMode, scheme, photo, photo2])
+
+  if (posterMode && posterSvg) {
+    return html`
+      <div
+        class=${`paper-viewport ${className}`}
+        style=${`width:${dims.width * scale}px;height:${dims.height * scale}px`}
+      >
+        <div
+          class="paper-zoom"
+          style=${`width:${dims.width}px;height:${dims.height}px;transform:scale(${scale})`}
+        >
+          <div
+            ref=${paperRef}
+            class=${`paper poster-paper format-poster ${interactive ? 'is-editable' : ''}`}
+            style=${`${styleStr};--pw:${dims.width}px;--ph:${dims.height}px`}
+          >
+            <div class="poster-svg" dangerouslySetInnerHTML=${{ __html: posterSvg }}></div>
+          </div>
+        </div>
       </div>
     `
   }

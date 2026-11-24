@@ -1,6 +1,7 @@
 import { COLOR_PRESETS, VARIANTS, FONT_PAIRINGS } from '../config/presets.js'
 import { chineseDate } from '../lib/format.js'
 import { DESIGN_SKILL } from './designSkill.js'
+import { posterSkillSection } from './posterSkill.js'
 
 const VARIANT_WHITELIST = Object.values(VARIANTS)
   .map((v) => `- ${v.id}（${v.name}）：${v.tagline}`)
@@ -14,7 +15,9 @@ const FONT_WHITELIST = Object.values(FONT_PAIRINGS)
   .map((f) => `- ${f.id}（${f.name}）：${f.note}`)
   .join('\n')
 
-export function buildSystemPrompt({ date = chineseDate() } = {}) {
+export function buildSystemPrompt({ date = chineseDate(), format = 'newspaper' } = {}) {
+  // 海报 skill 只在 4:5 海报格式注入；报纸模式保持原文案不变。
+  const posterBlock = posterSkillSection({ format, mode: 'standard' })
   return `# 角色
 
 你是「头版智造局」的报纸版式设计总监兼内容主编，服务于网页端「智能报纸生成器」。
@@ -31,7 +34,7 @@ export function buildSystemPrompt({ date = chineseDate() } = {}) {
 前端会对 JSON Schema、layout_variant 白名单、color_preset 白名单做硬校验；你必须严格服从。
 
 ${DESIGN_SKILL}
-
+${posterBlock ? `\n${posterBlock}\n` : ''}
 # 输入
 
 用户消息会提供：用户描述、照片信息（文件名 / 尺寸 / 是否可直接看图）、画面格式（报纸或海报）、当前日期。

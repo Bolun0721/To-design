@@ -269,6 +269,38 @@ export async function requestArtworks({ apiKey, settings, system, user, signal }
   })
 }
 
+/** 海报单套生成：三路并行时一次只返回一套「文案 + 海报规格」 */
+export async function requestPosterScheme({
+  apiKey,
+  settings,
+  system,
+  user,
+  photoDataUrl,
+  photo2DataUrl,
+  signal,
+}) {
+  const images = [photoDataUrl, photo2DataUrl].filter(Boolean)
+  const userContent =
+    settings.vision && images.length
+      ? [
+          { type: 'text', text: user },
+          ...images.map((url) => ({
+            type: 'image_url',
+            image_url: { url, detail: 'low' },
+          })),
+        ]
+      : user
+  return postChat({
+    apiKey,
+    settings,
+    system,
+    user: userContent,
+    signal,
+    temperature: 0.85,
+    maxTokens: 2400,
+  })
+}
+
 /** 多图补充图注：只返回 JSON captions */
 export async function requestCaptions({ apiKey, settings, system, user, imageDataUrls = [], signal }) {
   const images = imageDataUrls.filter(Boolean)

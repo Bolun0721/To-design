@@ -1,0 +1,19 @@
+{
+  "version": "v0.18.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.18.0",
+  "description": "海报设计 Skill：海报（4:5）专属构图 / 安全区 / 字号 / 单强调色 / 艺术字覆盖 / 图案语言 / 踩坑速查；版式目录、白名单、patch 字段由 posterSkill.js 资产表同源派生，并新增生成后自检与对话护栏",
+  "files": [
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "posterSkill.js"
+  ],
+  "notes": [
+    "systemPrompt.js / designPrompt.js / chat.js 只在 format === 'poster' 时注入海报段落，报纸提示词文案保持不变",
+    "生成阶段注入完整 posterSkillSection()；对话阶段只注入 posterChatGuard()，避免重复整份 skill",
+    "posterSkill.js 引用 config/presets.js 与 config/artFonts.js 的 id，不复制色值与字体定义",
+    "回归脚本 scripts/test-poster-skill.mjs 校验目录 / 白名单 / 注入位置 / 自检口径"
+  ]
+}

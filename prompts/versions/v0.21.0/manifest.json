@@ -1,0 +1,24 @@
+{
+  "version": "v0.21.0",
+  "date": "2026-11-24",
+  "gitTag": "v0.21.0",
+  "description": "海报富元素版：6 套模板增加底部编号信息条、三色信息卡、徽章、照片角标、相框、条码块、点阵/方块装饰与纸纹默认颗粒；poster_note 用「·」分隔 2–3 项直接铺成信息条",
+  "files": [
+    "posterPrompt.js",
+    "posterSpec.js",
+    "posterTemplates.js",
+    "posterPatterns.js",
+    "posterSkill.js",
+    "systemPrompt.js",
+    "designPrompt.js",
+    "chat.js",
+    "designSkill.js",
+    "llm.js"
+  ],
+  "notes": [
+    "渲染器新增 badge / corners / dots / squares / bars / vrule / frame 装饰类型",
+    "信息条取 poster_note 的「· / ／ / ,」分段，最多 3 项；缺省回退日期",
+    "原色积木用三色信息卡；斜切 / 手作用胶带、印章、条码；编辑 / 瑞士 / 影像保留留白",
+    "纸纹颗粒改为模板默认值（0.03–0.16），不再依赖模型回填"
+  ]
+}
